@@ -2,6 +2,8 @@
 
 **An Intelligent Research Paper → Biological Database Mapper**
 
+🔗 **Live:** [bio-link-psi-black.vercel.app](https://bio-link-psi-black.vercel.app/) — frontend on Vercel, API on Render.
+
 BioLink reads a biomedical research paper (PDF), extracts the genes, proteins,
 diseases, SNPs, pathways, organisms and chemicals it mentions, cross-references
 each one against seven authoritative biological databases in real time, and
@@ -172,26 +174,36 @@ face; IBM Plex Mono is used for gene symbols, IDs, and status badges.
 
 ## Deployment
 
+Live at **https://bio-link-psi-black.vercel.app** — frontend on Vercel,
+backend on Render, no Docker involved.
+
 No Docker required — the backend deploys as a native Python web service
 (needs a persistent Postgres connection + long-running requests, so it's
 not a fit for serverless functions, but doesn't need a container either).
 
 **Backend** — `render.yaml` is a Render Blueprint: push this repo, then on
 [render.com](https://render.com) choose **New → Blueprint** and point it at
-the repo. It provisions the web service (`pip install -r requirements.txt`
-+ `uvicorn`) and a free managed Postgres together, already wired to each
-other. (`ner.py` degrades gracefully to a dictionary/regex extractor if the
-NER model isn't present, so this stays a light install.)
+the repo. It provisions the web service and a free managed Postgres
+together, already wired to each other. Two things worth knowing if you're
+redeploying this from scratch:
+- The build pins `PYTHON_VERSION=3.11.9`. spaCy's compiled dependencies
+  (`blis`/`thinc`) only ship prebuilt wheels up to Python 3.12, so a newer
+  default runtime forces a from-source build that fails without a full
+  compiler toolchain.
+- The build command adds `--retries 10 --timeout 100` to `pip install`,
+  since Render's free-tier build network occasionally hits transient
+  `ConnectionResetError`/502s against PyPI.
 
-**Frontend** — deploy `frontend/` to Vercel (or Netlify) as a static site,
-with the project root set to `frontend/`. Since it's on a different origin
-than the backend, change `API_BASE` in [frontend/app.js](frontend/app.js)
-from the relative `/api/papers` to your deployed backend's full URL, e.g.
-`https://biolink-backend.onrender.com/api/papers`, then redeploy.
+**Frontend** — deployed to Vercel with the project root set to `frontend/`
+(static, no build step). Since it's on a different origin than the backend,
+`API_BASE` in [frontend/app.js](frontend/app.js) is set to the deployed
+backend's full URL rather than the relative `/api/papers` used for local
+same-origin development.
 
 If you'd rather not split hosts, the backend also serves the frontend
 directly (see `main.py`'s `StaticFiles` mount) — deploying just the
-backend gives you the whole app on one URL, with `API_BASE` left as-is.
+backend gives you the whole app on one URL; in that case revert `API_BASE`
+back to the relative `/api/papers`.
 
 ## Roadmap (see also section 10–11 of the original proof-of-concept)
 
