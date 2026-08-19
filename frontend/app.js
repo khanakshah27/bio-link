@@ -3,7 +3,7 @@
    Talks to the FastAPI backend at /api/papers/*.
    ========================================================================= */
 
-const API_BASE = "/api/papers";
+const API_BASE = "https://biolink-backend-0ndp.onrender.com";
 
 const TYPE_COLORS = {
   gene: "#9B87C4", protein: "#E39FC2", disease: "#E7A3A3",
