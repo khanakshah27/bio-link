@@ -1,0 +1,24 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+pydantic==2.9.2
+python-dotenv==1.0.1
+requests==2.32.3
+
+# --- PDF text extraction ---
+PyMuPDF==1.24.10
+pdfplumber==0.11.4
+
+# --- NER ---
+# spaCy is required for the fallback NER path.
+spacy==3.7.5
+# scispacy + a biomedical model are optional but recommended for real NER
+# quality (see README "NER model setup"). Install separately, e.g.:
+#   pip install scispacy==0.5.4
+#   pip install https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/scispacy/20230811/en_core_sci_sm-0.5.3.tar.gz
+# scispacy==0.5.4
+
+# --- optional: only used if ANTHROPIC_API_KEY is set for abstractive summaries ---
+anthropic==0.34.2

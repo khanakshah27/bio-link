@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BioLink — Research Paper to Biological Database Mapper</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="bg-texture" aria-hidden="true"></div>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <circle cx="9" cy="9" r="4.5" fill="#9B87C4"/>
+        <circle cx="21" cy="9" r="4.5" fill="#E8A9C9"/>
+        <circle cx="9" cy="21" r="4.5" fill="#8FC5B8"/>
+        <circle cx="21" cy="21" r="4.5" fill="#F0C987"/>
+        <path d="M9 9L21 9M9 9L9 21M21 9L21 21M9 21L21 21" stroke="#5B3E8C" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="brand-word">BioLink</span>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="upload">Upload</button>
+    <button class="tab-btn" data-tab="dashboard" disabled>Dashboard</button>
+    <button class="tab-btn" data-tab="graph" disabled>Knowledge Graph</button>
+    <button class="tab-btn" data-tab="databases" disabled>Databases</button>
+    <button class="tab-btn" data-tab="summary" disabled>Summary</button>
+  </nav>
+
+  <div class="paper-picker">
+    <select id="paperSelect" title="Previously analyzed papers">
+      <option value="">— past papers —</option>
+    </select>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ============ UPLOAD VIEW ============ -->
+  <section class="view active" id="view-upload">
+    <div class="upload-hero">
+      <p class="eyebrow">Biological Databases · Proof of Concept</p>
+      <h1>Turn a paper into a<br/><em>living biological map.</em></h1>
+      <p class="lede">Drop in a biomedical PDF. BioLink reads it, finds every gene, protein,
+        disease, SNP, pathway, organism and chemical it mentions, and cross-references each
+        one against NCBI, UniProt, PDB, KEGG, Gene&nbsp;Ontology, ClinVar and STRING — live.</p>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="application/pdf" hidden />
+      <div class="dropzone-inner">
+        <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
+          <rect x="10" y="6" width="26" height="34" rx="3" fill="#F3EEFB" stroke="#B8A6E0" stroke-width="1.6"/>
+          <path d="M16 20h14M16 26h14M16 32h9" stroke="#9B87C4" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M23 6v10l4-4M23 16l-4-4" stroke="#6B4E9E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="dz-title">Drag &amp; drop your paper here</p>
+        <p class="dz-sub">or</p>
+        <button class="btn-primary" id="browseBtn">Browse PDF</button>
+        <p class="dz-hint" id="fileName">No file selected · PDF only · up to 20MB</p>
+      </div>
+    </div>
+
+    <div class="demo-cta">
+      <span>No PDF on hand?</span>
+      <button class="btn-secondary" id="demoBtn">Load a sample analysis</button>
+    </div>
+
+    <!-- Processing pipeline (signature element) -->
+    <div class="pipeline" id="pipeline" hidden>
+      <div class="pipeline-step" data-step="upload"><span class="dot"></span><span>Upload</span></div>
+      <div class="pipeline-line"></div>
+      <div class="pipeline-step" data-step="extract"><span class="dot"></span><span>Extract text</span></div>
+      <div class="pipeline-line"></div>
+      <div class="pipeline-step" data-step="ner"><span class="dot"></span><span>Entity recognition</span></div>
+      <div class="pipeline-line"></div>
+      <div class="pipeline-step" data-step="link"><span class="dot"></span><span>Database linking</span></div>
+      <div class="pipeline-line"></div>
+      <div class="pipeline-step" data-step="graph"><span class="dot"></span><span>Build graph</span></div>
+    </div>
+
+    <p class="error-msg" id="uploadError" hidden></p>
+  </section>
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <section class="view" id="view-dashboard">
+    <div class="section-head">
+      <h2 id="paperTitle">Dashboard</h2>
+      <p class="muted" id="nerBadge"></p>
+    </div>
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="dashboard-columns">
+      <div class="entity-panel card">
+        <h3>Extracted entities</h3>
+        <div class="entity-filter" id="entityFilter"></div>
+        <div class="entity-list" id="entityList"></div>
+      </div>
+
+      <div class="evidence-panel card">
+        <h3>Evidence in paper</h3>
+        <p class="muted small">Click an entity to jump to the sentence it was found in.</p>
+        <div class="evidence-text" id="evidenceText">
+          <p class="placeholder">Select an entity to see it highlighted here.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GRAPH VIEW ============ -->
+  <section class="view" id="view-graph">
+    <div class="section-head">
+      <h2>Knowledge graph</h2>
+      <p class="muted">Click a node for details. Drag to rearrange, scroll to zoom.</p>
+    </div>
+    <div class="graph-shell card">
+      <div id="cy"></div>
+      <div class="graph-legend" id="graphLegend"></div>
+      <div class="graph-detail" id="graphDetail">
+        <p class="placeholder">Click a node to see its details and linked database records.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DATABASES VIEW ============ -->
+  <section class="view" id="view-databases">
+    <div class="section-head">
+      <h2>Database records</h2>
+      <p class="muted">Every external lookup BioLink made for this paper, per entity.</p>
+    </div>
+    <div class="db-table-wrap card">
+      <table class="db-table" id="dbTable">
+        <thead>
+          <tr><th>Entity</th><th>Type</th><th>Source</th><th>Status</th><th>Result</th></tr>
+        </thead>
+        <tbody id="dbTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ SUMMARY VIEW ============ -->
+  <section class="view" id="view-summary">
+    <div class="section-head">
+      <h2>AI-generated summary</h2>
+    </div>
+    <div class="summary-card card">
+      <p id="summaryText" class="summary-text"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>BioLink · Biological Databases Proof of Concept</span>
+  <span>FastAPI · SciSpacy/BioBERT · PostgreSQL · Cytoscape.js</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
