@@ -170,6 +170,29 @@ so a color always means the same thing everywhere in the app. Fraunces
 (serif) carries headings and the AI summary; Karla (sans) is the UI/body
 face; IBM Plex Mono is used for gene symbols, IDs, and status badges.
 
+## Deployment
+
+No Docker required — the backend deploys as a native Python web service
+(needs a persistent Postgres connection + long-running requests, so it's
+not a fit for serverless functions, but doesn't need a container either).
+
+**Backend** — `render.yaml` is a Render Blueprint: push this repo, then on
+[render.com](https://render.com) choose **New → Blueprint** and point it at
+the repo. It provisions the web service (`pip install -r requirements.txt`
++ `uvicorn`) and a free managed Postgres together, already wired to each
+other. (`ner.py` degrades gracefully to a dictionary/regex extractor if the
+NER model isn't present, so this stays a light install.)
+
+**Frontend** — deploy `frontend/` to Vercel (or Netlify) as a static site,
+with the project root set to `frontend/`. Since it's on a different origin
+than the backend, change `API_BASE` in [frontend/app.js](frontend/app.js)
+from the relative `/api/papers` to your deployed backend's full URL, e.g.
+`https://biolink-backend.onrender.com/api/papers`, then redeploy.
+
+If you'd rather not split hosts, the backend also serves the frontend
+directly (see `main.py`'s `StaticFiles` mount) — deploying just the
+backend gives you the whole app on one URL, with `API_BASE` left as-is.
+
 ## Roadmap (see also section 10–11 of the original proof-of-concept)
 
 - Multi-paper comparison view
