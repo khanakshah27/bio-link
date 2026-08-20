@@ -49,8 +49,9 @@ BioLink/
     requirements.txt
     .env.example
   frontend/
-    index.html / style.css / app.js    (served directly by FastAPI, no build step)
-  docker-compose.yml            Local PostgreSQL
+    index.html / style.css / app.js    (deployed standalone to Vercel; API_BASE points at the Render backend)
+  render.yaml                   Render Blueprint — deploys the backend + a managed Postgres, no Docker
+  docker-compose.yml            Optional: local PostgreSQL only, for local dev (not used in deployment)
   scripts/download_models.sh    NER model installer
 ```
 
