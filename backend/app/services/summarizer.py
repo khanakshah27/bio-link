@@ -7,13 +7,18 @@ mentions plus its position in the document, then stitches the top
 sentences back together in original order. This needs no API key and
 runs offline.
 
-If ANTHROPIC_API_KEY is set in the environment, summarize() instead asks
-Claude for a short abstractive summary grounded in the extracted
+If GEMINI_API_KEY is set in the environment, summarize() instead asks
+Gemini for a short abstractive summary grounded in the extracted
 entities/relationships, which reads more naturally. Both paths return
 plain text.
 """
 import os
+import requests
+
 from .pdf_extract import split_sentences
+
+GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
 
 def _extractive_summary(text: str, entities: list, max_sentences: int = 4) -> str:
@@ -41,13 +46,9 @@ def _extractive_summary(text: str, entities: list, max_sentences: int = 4) -> st
     return " ".join(top_in_order)
 
 
-def _claude_summary(text: str, entities: list, relations: list) -> str | None:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+def _gemini_summary(text: str, entities: list, relations: list) -> str | None:
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return None
-    try:
-        import anthropic
-    except ImportError:
         return None
 
     gene_list = sorted({e.text for e in entities if e.entity_type == "gene"})
@@ -66,20 +67,25 @@ def _claude_summary(text: str, entities: list, relations: list) -> str | None:
         f"Paper text (truncated):\n{text[:4000]}"
     )
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
+        resp = requests.post(
+            GEMINI_URL,
+            params={"key": api_key},
+            json={
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": 300},
+            },
+            timeout=20,
         )
-        parts = [b.text for b in resp.content if getattr(b, "type", None) == "text"]
-        return "\n".join(parts).strip() or None
+        resp.raise_for_status()
+        data = resp.json()
+        parts = data["candidates"][0]["content"]["parts"]
+        return "".join(p.get("text", "") for p in parts).strip() or None
     except Exception:
         return None
 
 
 def summarize(text: str, entities: list, relations: list) -> str:
-    claude_summary = _claude_summary(text, entities, relations)
-    if claude_summary:
-        return claude_summary
+    gemini_summary = _gemini_summary(text, entities, relations)
+    if gemini_summary:
+        return gemini_summary
     return _extractive_summary(text, entities)

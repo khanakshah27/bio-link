@@ -43,7 +43,7 @@ BioLink/
         normalize.py                Entity alias/canonicalization
         relationship_extraction.py   Pattern-based relation extraction
         db_integrations.py           NCBI/UniProt/PDB/KEGG/GO/ClinVar/STRING clients
-        summarizer.py                 Extractive (or Claude-powered) summary
+        summarizer.py                 Extractive (or Gemini-powered) summary
         graph_builder.py               Cytoscape.js elements builder
         pipeline.py                    Orchestrates the full pipeline
     requirements.txt
@@ -134,7 +134,7 @@ brief.
 
 **Everything → a summary.** `summarizer.py` defaults to a dependency-free
 extractive summary (scores sentences by entity density + position). If
-`ANTHROPIC_API_KEY` is set, it instead asks Claude for a short abstractive
+`GEMINI_API_KEY` is set, it instead asks Gemini for a short abstractive
 summary grounded in the extracted entities/relationships.
 
 ## API

@@ -20,5 +20,5 @@ spacy==3.7.5
 #   pip install https://s3-us-west-2.amazonaws.com/ai2-s2-research-public/scispacy/20230811/en_core_sci_sm-0.5.3.tar.gz
 # scispacy==0.5.4
 
-# --- optional: only used if ANTHROPIC_API_KEY is set for abstractive summaries ---
-anthropic==0.34.2
+# Gemini summaries (optional, only used if GEMINI_API_KEY is set) go through
+# the plain REST API via `requests`, already listed above — no extra SDK needed.
