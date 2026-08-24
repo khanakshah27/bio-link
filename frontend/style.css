@@ -390,6 +390,11 @@ main#app { max-width: 1180px; margin: 0 auto; padding: 40px 32px 80px; }
 .db-table tr:nth-child(even) { background: var(--surface-soft); }
 .db-table .gene-cell { font-family: var(--font-mono); font-weight: 600; }
 
+.db-row-clickable { cursor: pointer; }
+.db-row-clickable:hover { background: var(--purple-100); }
+.db-source-link { color: inherit; text-decoration: none; }
+.db-source-link:hover { text-decoration: underline; }
+
 .status-pill {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 0.72rem; font-weight: 700;

@@ -381,13 +381,25 @@ function renderDatabaseTable(entities) {
       rows++;
       const tr = document.createElement("tr");
       const resultText = r.payload ? summarizePayload(r.payload) : "—";
+      const homepage = sourceHomepage(r.source);
+      const sourceCell = homepage
+        ? `<a class="db-source-link" href="${escapeHtml(homepage)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceLabel(r.source))}</a>`
+        : escapeHtml(sourceLabel(r.source));
       tr.innerHTML = `
         <td class="gene-cell">${escapeHtml(e.text)}</td>
         <td><span style="color:${TYPE_COLORS[e.entity_type]}">${TYPE_LABELS[e.entity_type]}</span></td>
-        <td>${escapeHtml(sourceLabel(r.source))}</td>
+        <td>${sourceCell}</td>
         <td>${statusPill(r.status)}</td>
         <td>${escapeHtml(resultText)}</td>
       `;
+      if (homepage) {
+        tr.classList.add("db-row-clickable");
+        tr.title = `Open ${sourceLabel(r.source)} homepage`;
+        tr.addEventListener("click", (evt) => {
+          if (evt.target.closest("a")) return;
+          window.open(homepage, "_blank", "noopener,noreferrer");
+        });
+      }
       body.appendChild(tr);
     });
   });
@@ -399,6 +411,20 @@ function renderDatabaseTable(entities) {
 function sourceLabel(source) {
   const map = { ncbi_gene: "NCBI Gene", uniprot: "UniProt", pdb: "PDB", string: "STRING", go: "Gene Ontology", kegg: "KEGG", clinvar: "ClinVar" };
   return map[source] || source;
+}
+
+const DB_HOMEPAGES = {
+  ncbi_gene: "https://www.ncbi.nlm.nih.gov/gene",
+  uniprot: "https://www.uniprot.org",
+  pdb: "https://www.rcsb.org",
+  string: "https://string-db.org",
+  go: "https://geneontology.org",
+  kegg: "https://www.genome.jp/kegg",
+  clinvar: "https://www.ncbi.nlm.nih.gov/clinvar",
+};
+
+function sourceHomepage(source) {
+  return DB_HOMEPAGES[source] || null;
 }
 
 function statusPill(status) {
