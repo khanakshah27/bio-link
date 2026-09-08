@@ -46,6 +46,9 @@ class PaperOut(BaseModel):
     status: str
     error_message: Optional[str] = None
     summary: Optional[str] = None
+    source_type: Optional[str] = None  # pdf|pubmed
+    pubmed_id: Optional[str] = None
+    pubmed_url: Optional[str] = None
     entities: List[EntityOut] = []
     relationships: List[RelationshipOut] = []
 
@@ -80,3 +83,31 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     grounded: bool  # False if the LLM wasn't reachable/configured
+
+
+class PubmedFetchRequest(BaseModel):
+    pubmed_input: str  # a bare PMID, a pubmed.ncbi.nlm.nih.gov URL, or text containing one
+
+
+class RelatedPaper(BaseModel):
+    pmid: str
+    title: str
+    authors: Optional[str] = None
+    journal: Optional[str] = None
+    year: Optional[str] = None
+    url: str
+
+
+class RelatedPapersRequest(BaseModel):
+    """
+    Stateless like AskRequest above: takes the paper's PubMed ID (if any)
+    and already-extracted entities directly, so it works for the
+    client-only demo dataset too, without a DB round trip.
+    """
+    pubmed_id: Optional[str] = None
+    entities: List[EntityOut] = []
+
+
+class RelatedPapersResponse(BaseModel):
+    papers: List[RelatedPaper] = []
+    method: str  # pubmed_similar_articles|llm_keyword_search|keyword_search|none

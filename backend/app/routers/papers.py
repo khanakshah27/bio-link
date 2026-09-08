@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..config import get_settings
-from ..services import pdf_extract, pipeline, qa
+from ..services import pdf_extract, pipeline, qa, pubmed_fetch, related_papers
 from ..services.graph_builder import build_graph
 
 router = APIRouter(prefix="/api/papers", tags=["papers"])
@@ -26,7 +26,42 @@ def upload_paper(file: UploadFile = File(...), db: Session = Depends(get_db)):
     except ValueError as exc:
         raise HTTPException(422, str(exc))
 
-    paper = models.Paper(filename=file.filename, raw_text=text, status="processing")
+    paper = models.Paper(filename=file.filename, raw_text=text, status="processing", source_type="pdf")
+    db.add(paper)
+    db.commit()
+    db.refresh(paper)
+
+    try:
+        paper = pipeline.run_pipeline(db, paper)
+    except Exception as exc:
+        raise HTTPException(500, f"Processing failed: {exc}")
+
+    return _load_full_paper(db, paper.id)
+
+
+@router.post("/from_pubmed", response_model=schemas.PaperOut)
+def upload_from_pubmed(payload: schemas.PubmedFetchRequest, db: Session = Depends(get_db)):
+    pmid = pubmed_fetch.parse_pmid(payload.pubmed_input)
+    if not pmid:
+        raise HTTPException(
+            400,
+            "Couldn't find a PubMed ID in that input. Paste a PMID (e.g. "
+            "35883897) or a pubmed.ncbi.nlm.nih.gov link.",
+        )
+
+    try:
+        fetched = pubmed_fetch.fetch_pubmed_paper(pmid)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+
+    paper = models.Paper(
+        filename=fetched.title,
+        raw_text=fetched.text,
+        status="processing",
+        source_type="pubmed",
+        pubmed_id=fetched.pmid,
+        pubmed_url=fetched.url,
+    )
     db.add(paper)
     db.commit()
     db.refresh(paper)
@@ -44,6 +79,11 @@ def ask_question(payload: schemas.AskRequest):
     if not payload.question or not payload.question.strip():
         raise HTTPException(400, "Question cannot be empty.")
     return qa.answer_question(payload, payload.question.strip())
+
+
+@router.post("/related", response_model=schemas.RelatedPapersResponse)
+def find_related_papers(payload: schemas.RelatedPapersRequest):
+    return related_papers.get_related_papers(payload.pubmed_id, payload.entities)
 
 
 @router.get("", response_model=list[schemas.PaperListItem])

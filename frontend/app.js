@@ -201,19 +201,29 @@ async function handleFile(file) {
   fileNameEl.textContent = `Selected: ${file.name}`;
   browseBtn.disabled = true;
 
-  const pipelineAnim = animatePipeline();
-
   const formData = new FormData();
   formData.append("file", file);
 
   try {
-    const resp = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
+    await submitPaperRequest(() => fetch(`${API_BASE}/upload`, { method: "POST", body: formData }));
+  } finally {
+    browseBtn.disabled = false;
+  }
+}
+
+// Shared by file upload and PubMed fetch: both POST to an endpoint that
+// returns a full PaperOut (or an error), and both drive the same
+// pipeline animation / dashboard hand-off once it resolves.
+async function submitPaperRequest(sendRequest) {
+  const pipelineAnim = animatePipeline();
+  try {
+    const resp = await sendRequest();
     await pipelineAnim; // let the animation finish so it doesn't feel jumpy
     document.querySelectorAll(".pipeline-step").forEach(s => { s.classList.remove("active"); s.classList.add("done"); });
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ detail: "Upload failed." }));
-      throw new Error(err.detail || "Upload failed.");
+      const err = await resp.json().catch(() => ({ detail: "Request failed." }));
+      throw new Error(err.detail || "Request failed.");
     }
     const paper = await resp.json();
     if (paper.status === "error") {
@@ -227,8 +237,6 @@ async function handleFile(file) {
   } catch (err) {
     showUploadError(err.message);
     pipelineEl.hidden = true;
-  } finally {
-    browseBtn.disabled = false;
   }
 }
 
@@ -236,6 +244,34 @@ function showUploadError(msg) {
   uploadError.textContent = msg;
   uploadError.hidden = false;
 }
+
+// ---------------------------------------------------------------------
+// Fetch by PubMed ID/link
+// ---------------------------------------------------------------------
+const pubmedForm = document.getElementById("pubmedForm");
+const pubmedInput = document.getElementById("pubmedInput");
+const pubmedFetchBtn = document.getElementById("pubmedFetchBtn");
+
+pubmedForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const value = pubmedInput.value.trim();
+  if (!value) return;
+
+  uploadError.hidden = true;
+  state.demo = false;
+  fileNameEl.textContent = `Fetching PubMed ${value}…`;
+  pubmedFetchBtn.disabled = true;
+
+  try {
+    await submitPaperRequest(() => fetch(`${API_BASE}/from_pubmed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pubmed_input: value }),
+    }));
+  } finally {
+    pubmedFetchBtn.disabled = false;
+  }
+});
 
 // ---------------------------------------------------------------------
 // Past papers dropdown
@@ -286,10 +322,51 @@ function loadPaperIntoUI(paper) {
   renderDatabaseTable(paper.entities);
   state.cy = null; // force graph rebuild next time graph tab opens
   resetChatLog();
+  loadRelatedPapers(paper);
 }
 
 function resetChatLog() {
   chatLog.innerHTML = '<div class="chat-msg chat-msg-bot"><p class="placeholder">Try: "Which genes in this paper are linked to DNA repair?" or "What does the paper say about MDM2?"</p></div>';
+}
+
+// ---------------------------------------------------------------------
+// Related papers (real PubMed articles, shown alongside the entity list)
+// ---------------------------------------------------------------------
+async function loadRelatedPapers(paper) {
+  const list = document.getElementById("relatedList");
+  list.innerHTML = '<p class="placeholder">Looking up related papers…</p>';
+  try {
+    const resp = await fetch(`${API_BASE}/related`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pubmed_id: paper.pubmed_id || null,
+        entities: paper.entities || [],
+      }),
+    });
+    if (!resp.ok) throw new Error();
+    const data = await resp.json();
+    renderRelatedPapers(data.papers || []);
+  } catch (err) {
+    list.innerHTML = '<p class="placeholder">Couldn\'t load related papers right now.</p>';
+  }
+}
+
+function renderRelatedPapers(papers) {
+  const list = document.getElementById("relatedList");
+  if (!papers.length) {
+    list.innerHTML = '<p class="placeholder">No related papers found.</p>';
+    return;
+  }
+  list.innerHTML = papers.map(p => {
+    const meta = [p.journal, p.year].filter(Boolean).join(" · ");
+    return `
+      <div class="related-item">
+        <a class="related-title" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.title || "Untitled")}</a>
+        <div class="related-meta">${escapeHtml(meta)}${p.authors ? " — " + escapeHtml(p.authors) : ""}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 function describeExtraction(entities) {

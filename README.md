@@ -4,20 +4,22 @@
 
 🔗 **Live:** [bio-link-psi-black.vercel.app](https://bio-link-psi-black.vercel.app/) — frontend on Vercel, API on Render.
 
-BioLink reads a biomedical research paper (PDF), extracts the genes, proteins,
-diseases, SNPs, pathways, organisms and chemicals it mentions, cross-references
-each one against seven authoritative biological databases in real time, and
-renders the result as an interactive dashboard and knowledge graph.
+BioLink reads a biomedical research paper — a PDF upload, or a paper fetched
+directly by PubMed ID/link — extracts the genes, proteins, diseases, SNPs,
+pathways, organisms and chemicals it mentions, cross-references each one
+against seven authoritative biological databases in real time, and renders
+the result as an interactive dashboard and knowledge graph.
 
 ```
-Upload PDF → Extract text → Biomedical NER → Normalize entities
-    → Query NCBI / UniProt / PDB / KEGG / GO / ClinVar / STRING
+Upload PDF or paste a PubMed ID/link → Extract text → Biomedical NER
+    → Normalize entities → Query NCBI / UniProt / PDB / KEGG / GO / ClinVar / STRING
     → Extract relationships (LLM) → Build knowledge graph → Dashboard + AI summary
 ```
 
 A chat panel ("Ask Bio-Link") then lets you ask questions about the paper,
 answered by an LLM grounded only in that paper's extracted entities,
-relationships and database records.
+relationships and database records. A "Related papers" panel alongside the
+dashboard surfaces real PubMed articles related to the one you're viewing.
 
 ## Tech stack
 
@@ -49,6 +51,8 @@ BioLink/
         db_integrations.py           NCBI/UniProt/PDB/KEGG/GO/ClinVar/STRING clients
         summarizer.py                 Extractive (or Gemini-powered) summary
         qa.py                          "Ask Bio-Link" retrieval-augmented Q&A
+        pubmed_fetch.py                 Fetch a paper by PubMed ID/link
+        related_papers.py                Related-papers sidebar (PubMed + LLM)
         llm_client.py                  Shared Gemini REST client
         graph_builder.py               Cytoscape.js elements builder
         pipeline.py                    Orchestrates the full pipeline
@@ -161,16 +165,43 @@ also means it works against the client-only demo dataset, no upload
 required), and the endpoint says plainly that it needs `GEMINI_API_KEY`
 configured if the key is missing, rather than silently degrading.
 
+**PubMed ID/link → a paper.** Instead of uploading a PDF, you can paste a
+PubMed ID or a pubmed.ncbi.nlm.nih.gov link (e.g. `35883897` or
+`https://pubmed.ncbi.nlm.nih.gov/35883897/`) on the Upload screen.
+`pubmed_fetch.py` parses out the PMID, pulls the title/abstract via NCBI's
+ESummary/EFetch, and — best-effort — checks whether the paper has an
+open-access copy on PubMed Central via ELink and fetches that full text
+instead when available (most PubMed records don't have one, in which case
+it falls back to the abstract, which is available for nearly every
+record). Either way, the resulting text runs through the exact same
+pipeline as an uploaded PDF. An unpublished paper you're still writing
+doesn't need this at all — just upload its PDF like any other; nothing in
+BioLink requires a PubMed match.
+
+**Related papers.** The Dashboard's "Related papers" panel shows real
+PubMed articles related to the one you're viewing, via `related_papers.py`:
+if the paper was fetched by PubMed ID, it uses PubMed's own native
+"similar articles" relation (ELink) — the same algorithm PubMed's own
+website uses, free and with no LLM involved. For an uploaded PDF (no
+PubMed ID to find neighbors of), it instead asks Gemini for a short,
+well-formed PubMed search query built from the paper's own top extracted
+genes/diseases/pathways, then runs that query against PubMed's real
+search index — one LLM call per paper, grounded by real PubMed results
+rather than the LLM inventing citations. Falls back to a plain
+keyword-OR search (no LLM) if no `GEMINI_API_KEY` is configured.
+
 ## API
 
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/papers/upload` | Upload a PDF, run the full pipeline, return the paper with entities |
+| `POST` | `/api/papers/from_pubmed` | Fetch by PubMed ID/link, run the full pipeline, return the paper with entities |
 | `GET` | `/api/papers` | List previously analyzed papers |
 | `GET` | `/api/papers/{id}` | Full paper detail (entities, relationships, summary) |
 | `GET` | `/api/papers/{id}/graph` | Cytoscape.js `{elements: {nodes, edges}}` |
 | `DELETE` | `/api/papers/{id}` | Delete a paper and its data |
 | `POST` | `/api/papers/ask` | Ask Bio-Link: `{filename, summary, entities, relationships, question}` → `{answer, grounded}` |
+| `POST` | `/api/papers/related` | Related papers: `{pubmed_id, entities}` → `{papers, method}` |
 
 ## Notes on external network access
 

@@ -73,6 +73,14 @@
       </div>
     </div>
 
+    <div class="pubmed-fetch">
+      <p class="pubmed-fetch-label">Or fetch a published paper straight from PubMed</p>
+      <form class="pubmed-fetch-row" id="pubmedForm">
+        <input type="text" id="pubmedInput" placeholder="PubMed ID or link, e.g. 35883897 or https://pubmed.ncbi.nlm.nih.gov/35883897/" autocomplete="off" />
+        <button type="submit" class="btn-secondary" id="pubmedFetchBtn">Fetch</button>
+      </form>
+    </div>
+
     <div class="demo-cta">
       <span>No PDF on hand?</span>
       <button class="btn-secondary" id="demoBtn">Load a sample analysis</button>
@@ -115,6 +123,14 @@
         <p class="muted small">Click an entity to jump to the sentence it was found in.</p>
         <div class="evidence-text" id="evidenceText">
           <p class="placeholder">Select an entity to see it highlighted here.</p>
+        </div>
+      </div>
+
+      <div class="related-panel card">
+        <h3>Related papers</h3>
+        <p class="muted small">Real PubMed articles related to this paper's key genes, diseases and pathways.</p>
+        <div class="related-list" id="relatedList">
+          <p class="placeholder">Select or upload a paper to see related work.</p>
         </div>
       </div>
     </div>

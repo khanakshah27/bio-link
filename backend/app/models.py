@@ -28,6 +28,9 @@ class Paper(Base):
     summary = Column(Text, nullable=True)
     status = Column(String(32), default="processing")  # processing|done|error
     error_message = Column(Text, nullable=True)
+    source_type = Column(String(32), default="pdf")     # pdf|pubmed
+    pubmed_id = Column(String(32), nullable=True)
+    pubmed_url = Column(String(512), nullable=True)
 
     entities = relationship("Entity", back_populates="paper", cascade="all, delete-orphan")
     relationships = relationship("EntityRelationship", back_populates="paper", cascade="all, delete-orphan")
