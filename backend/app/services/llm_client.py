@@ -23,9 +23,22 @@ def is_available() -> bool:
 def call_gemini(prompt: str, max_output_tokens: int = 300, temperature: float = 0.2) -> str | None:
     """Returns the model's text response, or None on any failure (including
     a missing API key) so callers can fall back to a non-LLM path."""
+    text, _error = call_gemini_verbose(prompt, max_output_tokens, temperature)
+    return text
+
+
+def call_gemini_verbose(
+    prompt: str, max_output_tokens: int = 300, temperature: float = 0.2
+) -> tuple[str | None, str | None]:
+    """Same as call_gemini, but also returns a short, non-sensitive reason
+    string on failure (never includes the API key) so a caller that wants
+    to surface *why* the LLM call failed - e.g. the Ask Bio-Link chat,
+    where a silent generic error is a dead end for the user/deployer - can
+    do so instead of just getting None back."""
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return None
+        return None, "GEMINI_API_KEY is not set on the backend"
+
     try:
         resp = requests.post(
             GEMINI_URL,
@@ -46,10 +59,28 @@ def call_gemini(prompt: str, max_output_tokens: int = 300, temperature: float = 
             },
             timeout=20,
         )
-        resp.raise_for_status()
+    except requests.exceptions.RequestException as exc:
+        return None, f"network error calling Gemini ({type(exc).__name__})"
+
+    if not resp.ok:
+        return None, f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}"
+
+    try:
         data = resp.json()
-        parts = data["candidates"][0]["content"]["parts"]
-        text = "".join(p.get("text", "") for p in parts).strip()
-        return text or None
-    except Exception:
-        return None
+    except ValueError:
+        return None, "Gemini API returned a non-JSON response"
+
+    candidates = data.get("candidates") or []
+    if not candidates:
+        feedback = data.get("promptFeedback")
+        return None, f"Gemini API returned no candidates (promptFeedback={feedback})"
+
+    parts = (candidates[0].get("content") or {}).get("parts")
+    if not parts:
+        finish_reason = candidates[0].get("finishReason", "unknown")
+        return None, f"Gemini API returned no content parts (finishReason={finish_reason})"
+
+    text = "".join(p.get("text", "") for p in parts).strip()
+    if not text:
+        return None, "Gemini API returned an empty text response"
+    return text, None

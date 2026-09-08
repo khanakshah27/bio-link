@@ -83,12 +83,12 @@ def answer_question(paper, question: str) -> dict:
         "=== End of extracted knowledge ===\n\n"
         f"Question: {question}"
     )
-    answer = llm_client.call_gemini(prompt, max_output_tokens=500, temperature=0.1)
+    answer, error = llm_client.call_gemini_verbose(prompt, max_output_tokens=500, temperature=0.1)
     if not answer:
         return {
             "answer": (
                 "Sorry, I couldn't reach the language model to answer that "
-                "just now. Please try again in a moment."
+                f"just now ({error}). Please try again in a moment."
             ),
             "grounded": False,
         }
