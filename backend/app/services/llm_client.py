@@ -35,6 +35,13 @@ def call_gemini(prompt: str, max_output_tokens: int = 300, temperature: float = 
                 "generationConfig": {
                     "maxOutputTokens": max_output_tokens,
                     "temperature": temperature,
+                    # gemini-2.5-flash "thinks" before answering by default,
+                    # and can burn the entire maxOutputTokens budget on
+                    # internal reasoning with nothing left for the actual
+                    # answer (content.parts comes back empty/missing) for
+                    # these short, deterministic extraction/QA tasks that
+                    # don't need multi-step reasoning. Disable it.
+                    "thinkingConfig": {"thinkingBudget": 0},
                 },
             },
             timeout=20,
