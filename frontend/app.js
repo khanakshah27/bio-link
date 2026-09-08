@@ -285,6 +285,11 @@ function loadPaperIntoUI(paper) {
   renderSummary(paper.summary);
   renderDatabaseTable(paper.entities);
   state.cy = null; // force graph rebuild next time graph tab opens
+  resetChatLog();
+}
+
+function resetChatLog() {
+  chatLog.innerHTML = '<div class="chat-msg chat-msg-bot"><p class="placeholder">Try: "Which genes in this paper are linked to DNA repair?" or "What does the paper say about MDM2?"</p></div>';
 }
 
 function describeExtraction(entities) {
@@ -564,6 +569,67 @@ function showGraphDetail(node) {
     });
   }
   detail.innerHTML = html;
+}
+
+// ---------------------------------------------------------------------
+// Ask Bio-Link (retrieval-augmented Q&A over the extracted knowledge)
+// ---------------------------------------------------------------------
+const chatLog = document.getElementById("chatLog");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const chatSendBtn = document.getElementById("chatSendBtn");
+
+chatForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = chatInput.value.trim();
+  if (!question || !state.paper) return;
+
+  appendChatMessage("user", question);
+  chatInput.value = "";
+  chatInput.disabled = true;
+  chatSendBtn.disabled = true;
+  const thinkingEl = appendChatMessage("bot", "Bio-Link is thinking…", { thinking: true });
+
+  try {
+    const resp = await fetch(`${API_BASE}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: state.paper.filename,
+        summary: state.paper.summary,
+        entities: state.paper.entities || [],
+        relationships: state.paper.relationships || [],
+        question,
+      }),
+    });
+    thinkingEl.remove();
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: "Something went wrong." }));
+      appendChatMessage("bot", err.detail || "Something went wrong.", { error: true });
+      return;
+    }
+    const data = await resp.json();
+    appendChatMessage("bot", data.answer, { error: !data.grounded });
+  } catch (err) {
+    thinkingEl.remove();
+    appendChatMessage("bot", "Couldn't reach the Bio-Link backend. Check that it's running and try again.", { error: true });
+  } finally {
+    chatInput.disabled = false;
+    chatSendBtn.disabled = false;
+    chatInput.focus();
+  }
+});
+
+function appendChatMessage(role, text, opts = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = `chat-msg chat-msg-${role === "user" ? "user" : "bot"}`;
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble" + (opts.thinking ? " chat-thinking" : "") + (opts.error ? " chat-error" : "");
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return wrap;
 }
 
 // ---------------------------------------------------------------------

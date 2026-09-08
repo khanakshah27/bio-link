@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..config import get_settings
-from ..services import pdf_extract, pipeline
+from ..services import pdf_extract, pipeline, qa
 from ..services.graph_builder import build_graph
 
 router = APIRouter(prefix="/api/papers", tags=["papers"])
@@ -37,6 +37,13 @@ def upload_paper(file: UploadFile = File(...), db: Session = Depends(get_db)):
         raise HTTPException(500, f"Processing failed: {exc}")
 
     return _load_full_paper(db, paper.id)
+
+
+@router.post("/ask", response_model=schemas.AskResponse)
+def ask_question(payload: schemas.AskRequest):
+    if not payload.question or not payload.question.strip():
+        raise HTTPException(400, "Question cannot be empty.")
+    return qa.answer_question(payload, payload.question.strip())
 
 
 @router.get("", response_model=list[schemas.PaperListItem])

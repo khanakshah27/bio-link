@@ -60,3 +60,23 @@ class GraphEdge(BaseModel):
 
 class GraphOut(BaseModel):
     elements: Dict[str, List[Dict[str, Any]]]  # {"nodes": [...], "edges": [...]}
+
+
+class AskRequest(BaseModel):
+    """
+    "Ask Bio-Link" takes the paper's already-extracted entities/
+    relationships directly in the request (the shape the frontend already
+    holds in memory after upload or paper selection) rather than a
+    paper_id, so the same endpoint works for both a persisted paper and
+    the client-only demo dataset without a DB round trip.
+    """
+    filename: str
+    summary: Optional[str] = None
+    entities: List[EntityOut] = []
+    relationships: List[RelationshipOut] = []
+    question: str
+
+
+class AskResponse(BaseModel):
+    answer: str
+    grounded: bool  # False if the LLM wasn't reachable/configured

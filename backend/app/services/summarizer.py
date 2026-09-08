@@ -12,13 +12,8 @@ Gemini for a short abstractive summary grounded in the extracted
 entities/relationships, which reads more naturally. Both paths return
 plain text.
 """
-import os
-import requests
-
 from .pdf_extract import split_sentences
-
-GEMINI_MODEL = "gemini-2.5-flash"
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+from . import llm_client
 
 
 def _extractive_summary(text: str, entities: list, max_sentences: int = 4) -> str:
@@ -47,8 +42,7 @@ def _extractive_summary(text: str, entities: list, max_sentences: int = 4) -> st
 
 
 def _gemini_summary(text: str, entities: list, relations: list) -> str | None:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+    if not llm_client.is_available():
         return None
 
     gene_list = sorted({e.text for e in entities if e.entity_type == "gene"})
@@ -66,22 +60,7 @@ def _gemini_summary(text: str, entities: list, relations: list) -> str | None:
         f"Extracted relationships: {'; '.join(relation_lines) or 'none detected'}\n\n"
         f"Paper text (truncated):\n{text[:4000]}"
     )
-    try:
-        resp = requests.post(
-            GEMINI_URL,
-            params={"key": api_key},
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"maxOutputTokens": 300},
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        parts = data["candidates"][0]["content"]["parts"]
-        return "".join(p.get("text", "") for p in parts).strip() or None
-    except Exception:
-        return None
+    return llm_client.call_gemini(prompt, max_output_tokens=300)
 
 
 def summarize(text: str, entities: list, relations: list) -> str:

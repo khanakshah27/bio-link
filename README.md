@@ -12,8 +12,12 @@ renders the result as an interactive dashboard and knowledge graph.
 ```
 Upload PDF → Extract text → Biomedical NER → Normalize entities
     → Query NCBI / UniProt / PDB / KEGG / GO / ClinVar / STRING
-    → Extract relationships → Build knowledge graph → Dashboard + AI summary
+    → Extract relationships (LLM) → Build knowledge graph → Dashboard + AI summary
 ```
+
+A chat panel ("Ask Bio-Link") then lets you ask questions about the paper,
+answered by an LLM grounded only in that paper's extracted entities,
+relationships and database records.
 
 ## Tech stack
 
@@ -41,9 +45,11 @@ BioLink/
         pdf_extract.py            PyMuPDF/pdfplumber text extraction
         ner.py                     scispacy/spaCy NER + dictionary fallback
         normalize.py                Entity alias/canonicalization
-        relationship_extraction.py   Pattern-based relation extraction
+        relationship_extraction.py   LLM-classified relations + regex fallback
         db_integrations.py           NCBI/UniProt/PDB/KEGG/GO/ClinVar/STRING clients
         summarizer.py                 Extractive (or Gemini-powered) summary
+        qa.py                          "Ask Bio-Link" retrieval-augmented Q&A
+        llm_client.py                  Shared Gemini REST client
         graph_builder.py               Cytoscape.js elements builder
         pipeline.py                    Orchestrates the full pipeline
     requirements.txt
@@ -120,11 +126,17 @@ still has something meaningful to show; these are always labeled
 silently mixed in with live data. Set `USE_OFFLINE_FALLBACK=false` in `.env`
 to disable this and surface raw errors instead.
 
-**Sentences → relationships.** `relationship_extraction.py` looks for
-recognized relational verbs ("inhibits", "interacts with", "increases ...
-risk", etc.) co-occurring with two or more entities in the same sentence and
-emits labeled graph edges — this is what turns the knowledge graph from a
-flat entity list into an actual graph.
+**Sentences → relationships.** `relationship_extraction.py` sends each
+sentence with two or more entities, plus the entity list, to Gemini and
+asks it to classify the relationship type between each pair (inhibits,
+activates, regulates, interacts_with, associated_with, etc.) — this reads
+the sentence rather than pattern-matching a fixed verb list, so it catches
+phrasing regex would miss (passive voice, nominalizations like "loss of
+BRCA1 function", multi-clause sentences). If `GEMINI_API_KEY` isn't set, or
+the LLM call fails for a given sentence, it falls back to the original
+regex/pattern matcher so relationship extraction still works fully
+offline. Either way the result is labeled graph edges — this is what turns
+the knowledge graph from a flat entity list into an actual graph.
 
 **Everything → the knowledge graph.** `graph_builder.py` assembles entities,
 relationships, and one node per external database source that returned data,
@@ -137,6 +149,18 @@ extractive summary (scores sentences by entity density + position). If
 `GEMINI_API_KEY` is set, it instead asks Gemini for a short abstractive
 summary grounded in the extracted entities/relationships.
 
+**Everything → Ask Bio-Link.** The "Ask Bio-Link" tab is a Q&A chat over
+the paper you're viewing. `qa.py` builds a text digest of that paper's
+extracted entities, relationships and linked database records, and asks
+Gemini to answer the user's question using only that digest — not its
+general biomedical knowledge — so answers stay grounded in what the
+pipeline actually found (e.g. "Which genes in this paper are linked to DNA
+repair?"). It's retrieval-augmented rather than free-form: the frontend
+sends the paper's own already-extracted data with each question (which
+also means it works against the client-only demo dataset, no upload
+required), and the endpoint says plainly that it needs `GEMINI_API_KEY`
+configured if the key is missing, rather than silently degrading.
+
 ## API
 
 | Method | Path | Description |
@@ -146,6 +170,7 @@ summary grounded in the extracted entities/relationships.
 | `GET` | `/api/papers/{id}` | Full paper detail (entities, relationships, summary) |
 | `GET` | `/api/papers/{id}/graph` | Cytoscape.js `{elements: {nodes, edges}}` |
 | `DELETE` | `/api/papers/{id}` | Delete a paper and its data |
+| `POST` | `/api/papers/ask` | Ask Bio-Link: `{filename, summary, entities, relationships, question}` → `{answer, grounded}` |
 
 ## Notes on external network access
 
@@ -210,5 +235,5 @@ back to the relative `/api/papers`.
 
 - Multi-paper comparison view
 - Confidence-score display in the UI (already tracked in the data model)
-- Swap the relationship extractor for a trained BioBERT relation-classification head
 - Exportable PDF report per paper
+- Multi-turn conversation memory for Ask Bio-Link (currently stateless per question)

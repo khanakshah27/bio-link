@@ -36,6 +36,7 @@
     <button class="tab-btn" data-tab="graph" disabled>Knowledge Graph</button>
     <button class="tab-btn" data-tab="databases" disabled>Databases</button>
     <button class="tab-btn" data-tab="summary" disabled>Summary</button>
+    <button class="tab-btn" data-tab="ask" disabled>Ask Bio-Link</button>
   </nav>
 
   <div class="paper-picker">
@@ -157,6 +158,25 @@
     </div>
     <div class="summary-card card">
       <p id="summaryText" class="summary-text"></p>
+    </div>
+  </section>
+
+  <!-- ============ ASK BIO-LINK VIEW ============ -->
+  <section class="view" id="view-ask">
+    <div class="section-head">
+      <h2>Ask Bio-Link</h2>
+      <p class="muted">Ask a question about this paper. Answers are grounded only in the entities, relationships and database records BioLink already extracted — not general knowledge.</p>
+    </div>
+    <div class="ask-card card">
+      <div class="chat-log" id="chatLog">
+        <div class="chat-msg chat-msg-bot">
+          <p class="placeholder">Try: "Which genes in this paper are linked to DNA repair?" or "What does the paper say about MDM2?"</p>
+        </div>
+      </div>
+      <form class="chat-input-row" id="chatForm">
+        <input type="text" id="chatInput" class="chat-input" placeholder="Ask a question about this paper…" autocomplete="off" />
+        <button type="submit" class="btn-primary" id="chatSendBtn">Ask</button>
+      </form>
     </div>
   </section>
 
