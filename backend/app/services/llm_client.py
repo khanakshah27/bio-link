@@ -10,10 +10,20 @@ response shape). Centralizing the HTTP call here keeps that behavior in
 one place instead of three.
 """
 import os
+import time
 import requests
 
 GEMINI_MODEL = "gemini-2.5-flash"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+
+# Gemini's free tier has a fairly low requests-per-minute quota. A single
+# retry with backoff smooths over a brief burst (e.g. relationship
+# extraction's last batch for a paper landing right before an Ask Bio-Link
+# question) without adding much latency; it isn't meant to paper over
+# sustained quota exhaustion.
+MAX_429_RETRIES = 1
+DEFAULT_RETRY_DELAY_SECONDS = 5
+MAX_RETRY_DELAY_SECONDS = 15
 
 
 def is_available() -> bool:
@@ -39,28 +49,32 @@ def call_gemini_verbose(
     if not api_key:
         return None, "GEMINI_API_KEY is not set on the backend"
 
-    try:
-        resp = requests.post(
-            GEMINI_URL,
-            params={"key": api_key},
-            json={
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "maxOutputTokens": max_output_tokens,
-                    "temperature": temperature,
-                    # gemini-2.5-flash "thinks" before answering by default,
-                    # and can burn the entire maxOutputTokens budget on
-                    # internal reasoning with nothing left for the actual
-                    # answer (content.parts comes back empty/missing) for
-                    # these short, deterministic extraction/QA tasks that
-                    # don't need multi-step reasoning. Disable it.
-                    "thinkingConfig": {"thinkingBudget": 0},
-                },
-            },
-            timeout=20,
-        )
-    except requests.exceptions.RequestException as exc:
-        return None, f"network error calling Gemini ({type(exc).__name__})"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "maxOutputTokens": max_output_tokens,
+            "temperature": temperature,
+            # gemini-2.5-flash "thinks" before answering by default, and can
+            # burn the entire maxOutputTokens budget on internal reasoning
+            # with nothing left for the actual answer (content.parts comes
+            # back empty/missing) for these short, deterministic
+            # extraction/QA tasks that don't need multi-step reasoning.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
+    }
+
+    resp = None
+    for attempt in range(MAX_429_RETRIES + 1):
+        try:
+            resp = requests.post(GEMINI_URL, params={"key": api_key}, json=payload, timeout=20)
+        except requests.exceptions.RequestException as exc:
+            return None, f"network error calling Gemini ({type(exc).__name__})"
+
+        if resp.status_code == 429 and attempt < MAX_429_RETRIES:
+            delay = _retry_delay_seconds(resp) or DEFAULT_RETRY_DELAY_SECONDS
+            time.sleep(min(delay, MAX_RETRY_DELAY_SECONDS))
+            continue
+        break
 
     if not resp.ok:
         return None, f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}"
@@ -84,3 +98,21 @@ def call_gemini_verbose(
     if not text:
         return None, "Gemini API returned an empty text response"
     return text, None
+
+
+def _retry_delay_seconds(resp) -> float | None:
+    """Gemini's 429 body includes a RetryInfo detail with the server's
+    suggested wait (e.g. "34s"); use it when present instead of guessing."""
+    try:
+        details = (resp.json().get("error") or {}).get("details") or []
+    except ValueError:
+        return None
+    for d in details:
+        if str(d.get("@type", "")).endswith("RetryInfo"):
+            delay = str(d.get("retryDelay", ""))
+            if delay.endswith("s"):
+                try:
+                    return float(delay[:-1])
+                except ValueError:
+                    return None
+    return None
