@@ -26,6 +26,7 @@ GEMINI_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{
 # sustained quota exhaustion.
 MAX_429_RETRIES = 1
 REQUEST_TIMEOUT_SECONDS = 45
+RETRY_NEXT_MODEL_STATUSES = (404, 429, 500, 502, 503, 504)
 DEFAULT_RETRY_DELAY_SECONDS = 5
 MAX_RETRY_DELAY_SECONDS = 15
 
@@ -89,14 +90,15 @@ def call_gemini_verbose(
                     and "thinkingConfig" in payload["generationConfig"]:
                 del payload["generationConfig"]["thinkingConfig"]
                 continue
-            if resp.status_code == 429 and attempt < MAX_429_RETRIES:
+            if resp.status_code in (429, 503) and attempt < MAX_429_RETRIES:
                 delay = _retry_delay_seconds(resp) or DEFAULT_RETRY_DELAY_SECONDS
                 time.sleep(min(delay, MAX_RETRY_DELAY_SECONDS))
                 continue
             break
         # Free-tier quotas are tracked per model, so when one model is
-        # missing (404) or out of per-minute quota (429), try the next.
-        if resp is not None and resp.status_code not in (404, 429):
+        # missing (404), out of per-minute quota (429) or overloaded
+        # (5xx, e.g. "high demand" 503s), try the next.
+        if resp is not None and resp.status_code not in RETRY_NEXT_MODEL_STATUSES:
             break
 
     if resp is None:
