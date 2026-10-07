@@ -94,7 +94,15 @@ def call_gemini_verbose(
             break
 
     if resp.status_code == 429:
-        return None, "the AI service is rate-limited right now (Gemini free-tier quota)"
+        try:
+            detail = (resp.json().get("error") or {}).get("message", "")
+        except ValueError:
+            detail = ""
+        detail = " ".join(detail.split())[:240]
+        return None, (
+            "the AI service is rate-limited right now (Gemini quota)"
+            + (f" - Google says: {detail}" if detail else "")
+        )
     if not resp.ok:
         return None, f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}"
 
