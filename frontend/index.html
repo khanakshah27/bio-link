@@ -38,12 +38,6 @@
     <button class="tab-btn" data-tab="summary" disabled>Summary</button>
     <button class="tab-btn" data-tab="ask" disabled>Ask Bio-Link</button>
   </nav>
-
-  <div class="paper-picker">
-    <select id="paperSelect" title="Previously analyzed papers">
-      <option value="">— past papers —</option>
-    </select>
-  </div>
 </header>
 
 <main id="app">
@@ -84,6 +78,13 @@
     <div class="demo-cta">
       <span>No PDF on hand?</span>
       <button class="btn-secondary" id="demoBtn">Load a sample analysis</button>
+    </div>
+
+    <div class="paper-picker">
+      <span>Or reopen a past paper</span>
+      <select id="paperSelect" title="Previously analyzed papers">
+        <option value="">— past papers —</option>
+      </select>
     </div>
 
     <!-- Processing pipeline (signature element) -->
