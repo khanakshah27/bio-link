@@ -3,7 +3,14 @@
    Talks to the FastAPI backend at /api/papers/*.
    ========================================================================= */
 
-const API_BASE = "https://biolink-backend-0ndp.onrender.com/api/papers";
+// Same-origin when the FastAPI server serves this page (local dev, Docker,
+// Render); the hosted Render API only when the page is on Vercel or opened
+// as a file.
+const REMOTE_API = "https://biolink-backend-0ndp.onrender.com/api/papers";
+const API_BASE = (location.protocol === "http:" || location.protocol === "https:")
+  && !location.hostname.endsWith("vercel.app")
+  ? "/api/papers"
+  : REMOTE_API;
 
 const TYPE_COLORS = {
   gene: "#9B87C4", protein: "#E39FC2", disease: "#E7A3A3",

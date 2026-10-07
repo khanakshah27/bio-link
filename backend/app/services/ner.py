@@ -73,6 +73,12 @@ GENE_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{1,7}\b")
 COMMON_ACRONYM_STOPLIST = {
     "DNA", "RNA", "PCR", "USA", "UK", "NIH", "WHO", "FDA", "PDF", "AI",
     "NLP", "API", "CSV", "JSON", "XML", "HTML", "CT", "MRI", "ELISA",
+    "ACSF", "NACL", "PBS", "SEM", "SD", "ANOVA", "CNS", "EEG", "LTP", "ROS",
+    "HPLC", "DMSO", "EDTA", "TRIS", "HEPES", "PH", "CO2", "O2", "DAPI",
+    "FIG", "TABLE", "METHODS", "RESULTS", "ABSTRACT", "THE", "AND", "FOR",
+    "NOT", "WITH", "WAS", "WERE", "ARE", "BUT", "MM", "UM", "NM", "MG", "KG",
+    "ML", "HZ", "KHZ", "MV", "MS", "MIN", "SEC", "VS", "ET", "AL", "IV", "II",
+    "III", "IP", "IC", "SC", "PO",
 }
 
 
@@ -158,6 +164,8 @@ def _dictionary_extract(text: str) -> list[ExtractedEntity]:
         for m in GENE_PATTERN.finditer(sentence):
             token = m.group(0)
             if token in COMMON_ACRONYM_STOPLIST or token in GENE_SYMBOLS:
+                continue
+            if len(token) < 3 or token.isdigit():
                 continue
             if any(ch.isdigit() for ch in token) or (len(token) <= 5 and token.isupper()):
                 add(token, m.start(), "gene", 0.5, "heuristic")

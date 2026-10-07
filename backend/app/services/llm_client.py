@@ -13,8 +13,11 @@ import os
 import time
 import requests
 
-GEMINI_MODEL = "gemini-2.5-flash"
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+# Override with GEMINI_MODEL. If the configured model is retired/unknown
+# (HTTP 404), the others are tried in order so the AI features keep working.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+FALLBACK_MODELS = ["gemini-flash-latest", "gemini-2.0-flash"]
+GEMINI_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 # Gemini's free tier has a fairly low requests-per-minute quota. A single
 # retry with backoff smooths over a brief burst (e.g. relationship
@@ -45,7 +48,7 @@ def call_gemini_verbose(
     to surface *why* the LLM call failed - e.g. the Ask Bio-Link chat,
     where a silent generic error is a dead end for the user/deployer - can
     do so instead of just getting None back."""
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not api_key:
         return None, "GEMINI_API_KEY is not set on the backend"
 
@@ -54,27 +57,39 @@ def call_gemini_verbose(
         "generationConfig": {
             "maxOutputTokens": max_output_tokens,
             "temperature": temperature,
-            # gemini-2.5-flash "thinks" before answering by default, and can
-            # burn the entire maxOutputTokens budget on internal reasoning
-            # with nothing left for the actual answer (content.parts comes
-            # back empty/missing) for these short, deterministic
-            # extraction/QA tasks that don't need multi-step reasoning.
+            # gemini-2.5-flash "thinks" by default and can burn the whole
+            # output budget on reasoning, leaving no answer text.
             "thinkingConfig": {"thinkingBudget": 0},
         },
     }
 
     resp = None
-    for attempt in range(MAX_429_RETRIES + 1):
-        try:
-            resp = requests.post(GEMINI_URL, params={"key": api_key}, json=payload, timeout=20)
-        except requests.exceptions.RequestException as exc:
-            return None, f"network error calling Gemini ({type(exc).__name__})"
+    models_to_try = [os.getenv("GEMINI_MODEL", GEMINI_MODEL)] + [
+        m for m in FALLBACK_MODELS if m != os.getenv("GEMINI_MODEL", GEMINI_MODEL)
+    ]
+    for model in models_to_try:
+        url = GEMINI_URL_TEMPLATE.format(model=model)
+        for attempt in range(MAX_429_RETRIES + 1):
+            try:
+                # Key goes in a header, not the URL, so it can't leak via logs.
+                resp = requests.post(
+                    url, headers={"x-goog-api-key": api_key}, json=payload, timeout=30
+                )
+            except requests.exceptions.RequestException as exc:
+                return None, f"network error calling Gemini ({type(exc).__name__})"
 
-        if resp.status_code == 429 and attempt < MAX_429_RETRIES:
-            delay = _retry_delay_seconds(resp) or DEFAULT_RETRY_DELAY_SECONDS
-            time.sleep(min(delay, MAX_RETRY_DELAY_SECONDS))
-            continue
-        break
+            # Models without thinking support reject thinkingConfig.
+            if resp.status_code == 400 and "thinking" in resp.text.lower() \
+                    and "thinkingConfig" in payload["generationConfig"]:
+                del payload["generationConfig"]["thinkingConfig"]
+                continue
+            if resp.status_code == 429 and attempt < MAX_429_RETRIES:
+                delay = _retry_delay_seconds(resp) or DEFAULT_RETRY_DELAY_SECONDS
+                time.sleep(min(delay, MAX_RETRY_DELAY_SECONDS))
+                continue
+            break
+        if resp.status_code != 404:
+            break
 
     if not resp.ok:
         return None, f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}"

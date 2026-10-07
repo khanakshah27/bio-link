@@ -20,9 +20,15 @@ def run_pipeline(db: Session, paper: models.Paper) -> models.Paper:
         entities_extracted, ner_backend = ner.extract_entities(paper.raw_text)
 
         # --- Persist entities --------------------------------------------
-        entity_rows: dict[str, models.Entity] = {}
+        # One row per distinct (type, normalized id) per paper. Persisting
+        # every mention produced hundreds of duplicate, disconnected graph
+        # nodes; the first mention supplies the evidence sentence.
+        entity_rows: dict[tuple[str, str], models.Entity] = {}
         for e in entities_extracted:
             normalized_id = norm.normalize(e.text, e.entity_type)
+            key = (e.entity_type, normalized_id)
+            if key in entity_rows:
+                continue
             row = models.Entity(
                 paper_id=paper.id,
                 text=e.text,
@@ -35,38 +41,30 @@ def run_pipeline(db: Session, paper: models.Paper) -> models.Paper:
             )
             db.add(row)
             db.flush()  # assigns row.id without committing
-            entity_rows[f"{e.text.upper()}::{e.start_char}"] = row
+            entity_rows[key] = row
 
-        # --- Query external databases per entity (dedup by normalized id) --
-        queried_normalized_ids: set[str] = set()
-        db_records_by_entity: dict[str, list[models.DatabaseRecord]] = {}
-        for e in entities_extracted:
-            row = entity_rows[f"{e.text.upper()}::{e.start_char}"]
-            dedup_key = f"{row.entity_type}::{row.normalized_id}"
-            records_payload = (
-                dbint.query_all_for_entity(row.text, row.entity_type)
-                if dedup_key not in queried_normalized_ids else []
-            )
-            queried_normalized_ids.add(dedup_key)
-
-            db_records_by_entity.setdefault(row.id, [])
-            for rec in records_payload:
-                dr = models.DatabaseRecord(
+        # --- Query external databases once per entity -----------------------
+        for row in entity_rows.values():
+            for rec in dbint.query_all_for_entity(row.text, row.entity_type):
+                db.add(models.DatabaseRecord(
                     entity_id=row.id,
                     source=rec["source"],
                     status=rec["status"],
                     payload=rec["payload"],
-                )
-                db.add(dr)
-                db_records_by_entity[row.id].append(dr)
+                ))
 
         # --- Relationship extraction ---------------------------------------
         relations = relext.extract_relationships(entities_extracted)
+        seen_relations: set[tuple[str, str, str]] = set()
         for r in relations:
             src_row = _find_entity_row(entity_rows, r.source_text)
             tgt_row = _find_entity_row(entity_rows, r.target_text)
-            if not src_row or not tgt_row:
+            if not src_row or not tgt_row or src_row.id == tgt_row.id:
                 continue
+            rel_key = (src_row.id, tgt_row.id, r.relation_type)
+            if rel_key in seen_relations:
+                continue
+            seen_relations.add(rel_key)
             db.add(models.EntityRelationship(
                 paper_id=paper.id,
                 source_entity_id=src_row.id,
@@ -96,7 +94,13 @@ def run_pipeline(db: Session, paper: models.Paper) -> models.Paper:
 
 
 def _find_entity_row(entity_rows: dict, surface_text: str):
-    for key, row in entity_rows.items():
-        if key.startswith(surface_text.upper() + "::"):
+    """Match a relation endpoint's surface text to a persisted entity row,
+    by surface text first and then by normalized id (so "p53" finds TP53)."""
+    upper = surface_text.strip().upper()
+    for row in entity_rows.values():
+        if row.text.upper() == upper or (row.normalized_id or "").upper() == upper:
+            return row
+    for (etype, _), row in entity_rows.items():
+        if norm.normalize(surface_text, etype) == row.normalized_id:
             return row
     return None
