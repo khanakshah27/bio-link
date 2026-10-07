@@ -25,6 +25,7 @@ GEMINI_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{
 # question) without adding much latency; it isn't meant to paper over
 # sustained quota exhaustion.
 MAX_429_RETRIES = 1
+REQUEST_TIMEOUT_SECONDS = 45
 DEFAULT_RETRY_DELAY_SECONDS = 5
 MAX_RETRY_DELAY_SECONDS = 15
 
@@ -64,6 +65,7 @@ def call_gemini_verbose(
     }
 
     resp = None
+    network_error = None
     models_to_try = [os.getenv("GEMINI_MODEL", GEMINI_MODEL)] + [
         m for m in FALLBACK_MODELS if m != os.getenv("GEMINI_MODEL", GEMINI_MODEL)
     ]
@@ -73,10 +75,14 @@ def call_gemini_verbose(
             try:
                 # Key goes in a header, not the URL, so it can't leak via logs.
                 resp = requests.post(
-                    url, headers={"x-goog-api-key": api_key}, json=payload, timeout=30
+                    url, headers={"x-goog-api-key": api_key}, json=payload, timeout=REQUEST_TIMEOUT_SECONDS
                 )
             except requests.exceptions.RequestException as exc:
-                return None, f"network error calling Gemini ({type(exc).__name__})"
+                # A slow/overloaded model shouldn't end the request: move on
+                # to the next model, and only report the error if none work.
+                resp = None
+                network_error = f"network error calling Gemini ({type(exc).__name__})"
+                break
 
             # Models without thinking support reject thinkingConfig.
             if resp.status_code == 400 and "thinking" in resp.text.lower() \
@@ -90,9 +96,11 @@ def call_gemini_verbose(
             break
         # Free-tier quotas are tracked per model, so when one model is
         # missing (404) or out of per-minute quota (429), try the next.
-        if resp.status_code not in (404, 429):
+        if resp is not None and resp.status_code not in (404, 429):
             break
 
+    if resp is None:
+        return None, network_error
     if resp.status_code == 429:
         try:
             detail = (resp.json().get("error") or {}).get("message", "")
