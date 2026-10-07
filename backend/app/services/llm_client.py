@@ -88,9 +88,13 @@ def call_gemini_verbose(
                 time.sleep(min(delay, MAX_RETRY_DELAY_SECONDS))
                 continue
             break
-        if resp.status_code != 404:
+        # Free-tier quotas are tracked per model, so when one model is
+        # missing (404) or out of per-minute quota (429), try the next.
+        if resp.status_code not in (404, 429):
             break
 
+    if resp.status_code == 429:
+        return None, "the AI service is rate-limited right now (Gemini free-tier quota)"
     if not resp.ok:
         return None, f"Gemini API returned HTTP {resp.status_code}: {resp.text[:300]}"
 

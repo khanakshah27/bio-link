@@ -87,8 +87,8 @@ def answer_question(paper, question: str) -> dict:
     if not answer:
         return {
             "answer": (
-                "Sorry, I couldn't reach the language model to answer that "
-                f"just now ({error}). Please try again in a moment."
+                "Sorry, I couldn't get an answer from the language model "
+                f"just now: {error}. Please try again in a minute."
             ),
             "grounded": False,
         }
