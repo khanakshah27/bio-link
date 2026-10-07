@@ -87,7 +87,7 @@ a { color: var(--purple-800); }
 /* ============================ TOP BAR ============================ */
 .topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
   padding: 18px 40px;
@@ -109,7 +109,7 @@ a { color: var(--purple-800); }
   letter-spacing: -0.01em;
 }
 
-.tabs { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .tab-btn {
   font-family: var(--font-body);
   font-weight: 600;
@@ -118,7 +118,6 @@ a { color: var(--purple-800); }
   background: transparent;
   border: 1px solid transparent;
   padding: 9px 16px;
-  text-align: left;
   border-radius: 999px;
   cursor: pointer;
   transition: all .18s ease;
