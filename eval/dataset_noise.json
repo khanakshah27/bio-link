@@ -1,0 +1,56 @@
+{
+ "name": "noise",
+ "description": "6 passages (12 sentences) of methods, statistics and clinical text full of non-gene acronyms, written to stress the gene-guessing heuristic. Almost no gold entities: false positives here are wrongly guessed genes. Scored once and NOT tuned to.",
+ "guidelines": "Annotation guidelines: entities are named human genes/gene products (HGNC symbols and common aliases), diseases, pathways/biological processes, organisms, drugs/chemicals and rs-numbered SNPs. Lab reagents, reporters, software, statistics terms and gene FAMILY/complex names (AKT, MAPK, PI3K) are NOT entities. Relations are annotated only between annotated entities in the same sentence.",
+ "passages": [
+  {
+   "id": "n01",
+   "text": "Participants were recruited at three UK sites and BMI, HbA1c and LDL levels were recorded. The hazard ratio (HR) was 1.4 (95% CI 1.1 to 1.9) after adjusting for age and sex.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "n02",
+   "text": "Total RNA was extracted, reverse transcribed and amplified by qPCR with SYBR Green. Samples were stored in DMSO at -80 degrees and sequenced on an NGS platform.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "n03",
+   "text": "Cell lines from ATCC were grown in DMEM with FBS and imaged by FACS and MRI. Data are mean and SEM, with P values from a t test.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "n04",
+   "text": "The ICU cohort included patients with COPD, HIV and CKD, and outcomes were assessed with ROC and AUC analysis. Missing data were handled by MICE in R.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "n05",
+   "text": "Sequencing used the GRCh38 reference with BWA and GATK, and variants were annotated with VEP and gnomAD. Reads were aligned using STAR and counted in HTSeq.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "n06",
+   "text": "Mice received IP injections of PBS or LPS, and IL-1 and TGF levels were measured by ELISA. Neurons were identified with NeuN and GFAP staining.",
+   "entities": [
+    [
+     "mice",
+     "organism"
+    ],
+    [
+     "IL-1",
+     "gene"
+    ],
+    [
+     "TGF",
+     "gene"
+    ]
+   ],
+   "relations": []
+  }
+ ]
+}

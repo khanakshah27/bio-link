@@ -30,6 +30,15 @@ class Settings:
     SCISPACY_MODEL: str = os.getenv("SCISPACY_MODEL", "en_core_sci_sm")
     SPACY_FALLBACK_MODEL: str = os.getenv("SPACY_FALLBACK_MODEL", "en_core_web_sm")
 
+    # Gene symbols that are NOT on the curated list are guessed from their shape
+    # (2-8 capitals/digits, not a known acronym) at confidence 0.5. This is
+    # always on in the dictionary-only tier. For the spaCy/scispaCy tiers it is
+    # OFF by default: on methods/statistics text full of acronyms (BMI, COPD,
+    # GATK, ...) it produced 17 false genes in 12 sentences (eval/dataset_noise.json),
+    # far more than the genes it recovered. Set INCLUDE_GUESSED_GENES=true to
+    # trade precision for recall on genes outside the curated list.
+    INCLUDE_GUESSED_GENES: bool = os.getenv("INCLUDE_GUESSED_GENES", "false").lower() == "true"
+
     # --- External biological database APIs --------------------------------
     NCBI_EUTILS_BASE: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
     NCBI_API_KEY: str = os.getenv("NCBI_API_KEY", "")  # optional, raises rate limit

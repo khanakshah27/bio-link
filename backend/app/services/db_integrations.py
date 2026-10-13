@@ -16,6 +16,11 @@ Design notes:
 """
 from __future__ import annotations
 
+import threading
+import time
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
+
 import requests
 from typing import Any
 
@@ -24,8 +29,28 @@ from ..config import get_settings
 settings = get_settings()
 
 
+# NCBI E-utilities allow ~3 requests/second without an API key (10 with one).
+# Lookups now run concurrently, so every NCBI call passes through this shared
+# throttle to stay inside that limit no matter how many worker threads exist.
+_ncbi_lock = threading.Lock()
+_ncbi_next_slot = 0.0
+
+
+def _ncbi_throttle() -> None:
+    global _ncbi_next_slot
+    interval = 0.11 if settings.NCBI_API_KEY else 0.34
+    with _ncbi_lock:
+        now = time.monotonic()
+        wait = _ncbi_next_slot - now
+        _ncbi_next_slot = max(now, _ncbi_next_slot) + interval
+    if wait > 0:
+        time.sleep(wait)
+
+
 def _get(url: str, params: dict | None = None, timeout: float | None = None) -> dict | None:
     try:
+        if url.startswith(settings.NCBI_EUTILS_BASE):
+            _ncbi_throttle()
         resp = requests.get(url, params=params, timeout=timeout or settings.REQUEST_TIMEOUT_SECONDS)
         resp.raise_for_status()
         return resp.json()
@@ -184,14 +209,74 @@ def query_kegg_pathway(term: str) -> dict:
     return {"status": "unavailable", "data": None}
 
 
-def query_go(symbol: str) -> dict:
-    result = _get(f"{settings.QUICKGO_BASE}/geneproduct/search", params={"query": symbol, "limit": 1})
-    # QuickGO's annotation search has a different shape; kept intentionally
-    # simple here since the free-text search endpoint mainly confirms the
-    # gene product exists. A production build would call the /annotation
-    # endpoint with the resolved UniProt accession for full GO term lists.
-    if result and result.get("results"):
-        return {"status": "ok", "data": {"go_search_hit": result["results"][0]}}
+_GO_ASPECTS = {
+    "biological_process": "biological_process", "P": "biological_process", "process": "biological_process",
+    "molecular_function": "molecular_function", "F": "molecular_function", "function": "molecular_function",
+    "cellular_component": "cellular_component", "C": "cellular_component", "component": "cellular_component",
+}
+GO_TERMS_PER_ASPECT = 8
+
+
+def _go_term_names(go_ids: list[str]) -> dict[str, str]:
+    """Look up names for GO ids when the annotation response didn't include them."""
+    if not go_ids:
+        return {}
+    data = _get(f"{settings.QUICKGO_BASE}/ontology/go/terms/{','.join(go_ids)}")
+    out = {}
+    for row in (data or {}).get("results", []):
+        if row.get("id") and row.get("name"):
+            out[row["id"]] = row["name"]
+    return out
+
+
+def parse_go_annotations(results: list[dict]) -> dict:
+    """Group QuickGO annotation rows into the three GO aspects (deduplicated
+    by GO id, most frequently annotated terms first)."""
+    counts: Counter = Counter()
+    names: dict[str, str] = {}
+    aspect_of: dict[str, str] = {}
+    for row in results:
+        go_id = row.get("goId")
+        aspect = _GO_ASPECTS.get(row.get("goAspect", ""))
+        if not go_id or not aspect:
+            continue
+        counts[go_id] += 1
+        aspect_of[go_id] = aspect
+        if row.get("goName"):
+            names[go_id] = row["goName"]
+    missing = [g for g in counts if g not in names]
+    if missing:
+        names.update(_go_term_names(missing[:50]))
+    grouped: dict[str, list[str]] = {"biological_process": [], "molecular_function": [], "cellular_component": []}
+    for go_id, _n in counts.most_common():
+        aspect = aspect_of[go_id]
+        if len(grouped[aspect]) < GO_TERMS_PER_ASPECT:
+            grouped[aspect].append(names.get(go_id, go_id))
+    grouped["distinct_terms"] = len(counts)
+    return grouped
+
+
+def query_go(symbol: str, accession: str | None = None) -> dict:
+    """GO terms for a gene via the QuickGO annotation endpoint. The UniProt
+    accession is passed in when the caller already resolved it, otherwise it is
+    looked up here."""
+    if accession is None:
+        acc_result = _get(f"{settings.UNIPROT_BASE}/search", params={
+            "query": f"gene:{symbol} AND organism_id:9606 AND reviewed:true",
+            "format": "json", "size": 1, "fields": "accession",
+        })
+        hits = (acc_result or {}).get("results") or []
+        accession = hits[0].get("primaryAccession") if hits else None
+
+    if accession:
+        ann = _get(f"{settings.QUICKGO_BASE}/annotation/search", params={
+            "geneProductId": f"UniProtKB:{accession}", "limit": 100, "includeFields": "goName",
+        })
+        if ann and ann.get("results"):
+            grouped = parse_go_annotations(ann["results"])
+            if any(grouped[k] for k in ("biological_process", "molecular_function", "cellular_component")):
+                grouped["accession"] = accession
+                return {"status": "ok", "data": grouped}
 
     fb = _fallback("go", symbol)
     if fb:
@@ -199,15 +284,50 @@ def query_go(symbol: str) -> dict:
     return {"status": "unavailable", "data": None}
 
 
+CLINVAR_SAMPLE_SIZE = 20
+
+
+def _clinvar_significance(doc: dict) -> str | None:
+    """ClinVar's esummary schema changed: newer records use
+    germline_classification, older ones clinical_significance."""
+    for key in ("germline_classification", "clinical_significance"):
+        block = doc.get(key)
+        if isinstance(block, dict) and block.get("description"):
+            return block["description"]
+    return None
+
+
+def parse_clinvar_summary(summary: dict) -> dict:
+    result = (summary or {}).get("result", {})
+    uids = [u for u in result.get("uids", []) if u in result]
+    breakdown: Counter = Counter()
+    examples = []
+    for uid in uids:
+        doc = result[uid]
+        sig = _clinvar_significance(doc) or "not reported"
+        breakdown[sig] += 1
+        if len(examples) < 5:
+            examples.append({"id": uid, "title": doc.get("title"), "significance": sig})
+    return {"significance_breakdown_in_sample": dict(breakdown), "example_variants": examples}
+
+
 def query_clinvar(disease_term: str) -> dict:
+    key = {"api_key": settings.NCBI_API_KEY} if settings.NCBI_API_KEY else {}
     search = _get(f"{settings.NCBI_EUTILS_BASE}/esearch.fcgi", params={
-        "db": "clinvar", "term": disease_term, "retmode": "json", "retmax": 0,
-        **({"api_key": settings.NCBI_API_KEY} if settings.NCBI_API_KEY else {}),
+        "db": "clinvar", "term": disease_term, "retmode": "json", "retmax": CLINVAR_SAMPLE_SIZE, **key,
     })
     if search and "esearchresult" in search:
         count = search["esearchresult"].get("count")
         if count is not None:
-            return {"status": "ok", "data": {"variant_count_reported": count}}
+            data: dict[str, Any] = {"variant_count_reported": count}
+            ids = search["esearchresult"].get("idlist") or []
+            if ids:
+                summary = _get(f"{settings.NCBI_EUTILS_BASE}/esummary.fcgi", params={
+                    "db": "clinvar", "id": ",".join(ids), "retmode": "json", **key,
+                })
+                if summary:
+                    data.update(parse_clinvar_summary(summary))
+            return {"status": "ok", "data": data}
 
     fb = _fallback("clinvar", disease_term)
     if fb:
@@ -248,13 +368,39 @@ QUERIES_BY_TYPE = {
 
 def query_all_for_entity(entity_text: str, entity_type: str) -> list[dict]:
     """Run every relevant database query for one entity, returning a list
-    of {"source": ..., "status": ..., "payload": ...} dicts."""
-    records = []
-    for source, fn in QUERIES_BY_TYPE.get(entity_type, []):
-        result = fn(entity_text)
-        records.append({
-            "source": source,
-            "status": result["status"],
-            "payload": result["data"],
-        })
+    of {"source": ..., "status": ..., "payload": ...} dicts in dispatch order.
+
+    The queries for one entity are independent of each other, so they run
+    concurrently. The one dependency is Gene Ontology, which needs the UniProt
+    accession, so it waits for the UniProt result and reuses it.
+    """
+    plan = QUERIES_BY_TYPE.get(entity_type, [])
+    if not plan:
+        return []
+    with ThreadPoolExecutor(max_workers=len(plan)) as pool:
+        futures = {}
+        for source, fn in plan:
+            if source == "go" and "uniprot" in futures:
+                up = futures["uniprot"]
+
+                def go_task(sym=entity_text, up=up):
+                    res = up.result()
+                    acc = (res.get("data") or {}).get("accession") if res["status"] == "ok" else None
+                    return query_go(sym, accession=acc)
+
+                futures[source] = pool.submit(go_task)
+            else:
+                futures[source] = pool.submit(fn, entity_text)
+        records = []
+        for source, _fn in plan:
+            result = futures[source].result()
+            records.append({"source": source, "status": result["status"], "payload": result["data"]})
     return records
+
+
+def query_all_for_entities(entities: list[tuple[str, str]], max_workers: int = 4) -> list[list[dict]]:
+    """Look up many (text, type) entities concurrently, preserving input order."""
+    if not entities:
+        return []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        return list(pool.map(lambda et: query_all_for_entity(*et), entities))

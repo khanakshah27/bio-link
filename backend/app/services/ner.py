@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from .pdf_extract import split_sentences
+from . import normalize as norm
 
 # ---------------------------------------------------------------------------
 # Curated biomedical lexicons (fallback mode + type disambiguation for
@@ -69,12 +70,15 @@ CHEMICAL_TERMS = {
 SNP_PATTERN = re.compile(r"\brs\d{3,}\b", re.IGNORECASE)
 # HGNC-style gene symbol heuristic: 2-8 chars, starts with a letter,
 # uppercase letters/digits, not a common all-caps English acronym.
-GENE_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{1,7}\b")
+GENE_PATTERN = re.compile(r"(?<![\w-])[A-Z][A-Z0-9]{1,7}(?![\w-])")
 COMMON_ACRONYM_STOPLIST = {
     "DNA", "RNA", "PCR", "USA", "UK", "NIH", "WHO", "FDA", "PDF", "AI",
     "NLP", "API", "CSV", "JSON", "XML", "HTML", "CT", "MRI", "ELISA",
     "ACSF", "NACL", "PBS", "SEM", "SD", "ANOVA", "CNS", "EEG", "LTP", "ROS",
     "HPLC", "DMSO", "EDTA", "TRIS", "HEPES", "PH", "CO2", "O2", "DAPI",
+    # common lab reagents / software / reporters that look like gene symbols
+    "GFP", "YFP", "RFP", "BSA", "FBS", "SDS", "PAGE", "SPSS", "DMEM", "RPMI",
+    "LB", "TBS", "PVDF", "HRP", "FACS", "ELISA", "GLM", "R2",
     "FIG", "TABLE", "METHODS", "RESULTS", "ABSTRACT", "THE", "AND", "FOR",
     "NOT", "WITH", "WAS", "WERE", "ARE", "BUT", "MM", "UM", "NM", "MG", "KG",
     "ML", "HZ", "KHZ", "MV", "MS", "MIN", "SEC", "VS", "ET", "AL", "IV", "II",
@@ -93,6 +97,13 @@ class ExtractedEntity:
     source: str = "dictionary"  # dictionary|scispacy
 
 
+def _flex_digit(alias: str) -> str:
+    """Pattern for an alias that tolerates a hyphen between letters and digits
+    (HER2 also matches HER-2)."""
+    m = re.fullmatch(r"([A-Z]+)(\d+)", alias)
+    return rf"{m.group(1)}-?{m.group(2)}" if m else re.escape(alias)
+
+
 def _classify_span(surface: str) -> Optional[str]:
     """Map a surface string to a BioLink entity type using the lexicons."""
     lower = surface.lower().strip()
@@ -106,7 +117,7 @@ def _classify_span(surface: str) -> Optional[str]:
         return "organism"
     if lower in CHEMICAL_TERMS:
         return "chemical"
-    if surface.upper() in GENE_SYMBOLS:
+    if norm.normalize(surface, "gene") in GENE_SYMBOLS:
         return "gene"
     return None
 
@@ -148,20 +159,36 @@ def _dictionary_extract(text: str) -> list[ExtractedEntity]:
             (CHEMICAL_TERMS, "chemical"),
         ):
             for term in term_set:
-                for m in re.finditer(re.escape(term), sentence, re.IGNORECASE):
+                for m in re.finditer(rf"(?<!\w){re.escape(term)}(?!\w)", sentence, re.IGNORECASE):
                     add(sentence[m.start():m.end()], m.start(), etype, 0.8, "dictionary")
 
         # SNPs
         for m in SNP_PATTERN.finditer(sentence):
             add(m.group(0), m.start(), "snp", 0.9, "regex")
 
-        # Gene symbols: curated list first (high confidence)...
+        # Gene symbols: curated list first (high confidence). Symbols match
+        # case-sensitively, with an optional hyphen before the digits (IL-6).
         for gene in GENE_SYMBOLS:
-            for m in re.finditer(rf"\b{re.escape(gene)}\b", sentence):
-                add(m.group(0), m.start(), "gene", 0.9, "dictionary")
+            for variant in norm.gene_symbol_variants(gene):
+                for m in re.finditer(rf"(?<![\w-]){re.escape(variant)}(?![\w])", sentence):
+                    add(m.group(0), m.start(), "gene", 0.9, "dictionary")
+        # Known aliases of listed genes (p53, HER-2, TNF-alpha...), case-insensitive.
+        for alias, canonical in norm.ALIASES["gene"].items():
+            if canonical not in GENE_SYMBOLS or alias == "NEU":
+                continue
+            pattern = re.escape(alias).replace(r"\ ", r"[-\s]?")
+            if len(alias) <= 5 and alias.isalpha():
+                continue  # short all-letter aliases are too ambiguous in prose
+            for m in re.finditer(rf"(?<![\w-])({pattern}|{_flex_digit(alias)})(?![\w])", sentence, re.IGNORECASE):
+                add(m.group(0), m.start(), "gene", 0.85, "dictionary")
 
         # ...then a lower-confidence heuristic for unlisted gene-like tokens.
+        # Tokens inside a term already recognised above (the MAPK in
+        # "MAPK pathway") are part of that term, not separate genes.
+        covered = [sp for sp in seen_spans]
         for m in GENE_PATTERN.finditer(sentence):
+            if any(m.start() < e and m.end() > b for b, e in covered):
+                continue
             token = m.group(0)
             if token in COMMON_ACRONYM_STOPLIST or token in GENE_SYMBOLS:
                 continue
@@ -197,9 +224,11 @@ def _scispacy_extract(text: str, nlp) -> list[ExtractedEntity]:
     # scispacy's NER can miss SNP ids / dictionary-only terms it wasn't
     # trained on, so we still union in the deterministic regex/dictionary
     # pass for SNPs, diseases, pathways, organisms and known gene symbols.
+    from ..config import get_settings
+    keep_sources = {"dictionary", "heuristic"} if get_settings().INCLUDE_GUESSED_GENES else {"dictionary"}
     entities.extend([
         e for e in _dictionary_extract(text)
-        if e.entity_type in {"snp"} or e.source == "dictionary"
+        if e.entity_type in {"snp"} or e.source in keep_sources
     ])
     return _dedupe(entities)
 

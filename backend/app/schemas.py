@@ -65,6 +65,11 @@ class GraphOut(BaseModel):
     elements: Dict[str, List[Dict[str, Any]]]  # {"nodes": [...], "edges": [...]}
 
 
+class ChatTurn(BaseModel):
+    role: str      # "user" | "assistant"
+    content: str
+
+
 class AskRequest(BaseModel):
     """
     "Ask Bio-Link" takes the paper's already-extracted entities/
@@ -78,6 +83,10 @@ class AskRequest(BaseModel):
     entities: List[EntityOut] = []
     relationships: List[RelationshipOut] = []
     question: str
+    # Earlier turns of this conversation (oldest first) so follow-ups like
+    # "and which of those are in the PI3K pathway?" can be resolved. The
+    # server trims it; omit or send [] for a one-off question.
+    history: List[ChatTurn] = []
 
 
 class AskResponse(BaseModel):

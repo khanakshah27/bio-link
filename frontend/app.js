@@ -527,8 +527,17 @@ function summarizePayload(payload) {
   if (payload.structures) return `${payload.structures.length} structure(s): ${payload.structures.join(", ")}`;
   if (payload.partners) return `Interacts with: ${payload.partners.join(", ")}`;
   if (payload.pathways) return payload.pathways.map(p => p.name).join(", ");
-  if (payload.biological_process) return payload.biological_process.join(", ");
-  if (payload.variant_count_reported) return `${payload.variant_count_reported} variant(s) reported`;
+  if (payload.biological_process || payload.molecular_function || payload.cellular_component) {
+    const part = (label, arr) => (arr && arr.length ? `${label}: ${arr.join(", ")}` : "");
+    return [part("Process", payload.biological_process), part("Function", payload.molecular_function),
+            part("Component", payload.cellular_component)].filter(Boolean).join(" | ");
+  }
+  if (payload.variant_count_reported) {
+    const br = payload.significance_breakdown_in_sample;
+    const extra = br ? ` (sample of ${Object.values(br).reduce((a, b) => a + b, 0)}: ` +
+      Object.entries(br).map(([k, v]) => `${v} ${k}`).join(", ") + ")" : "";
+    return `${payload.variant_count_reported} variant(s) reported${extra}`;
+  }
   return JSON.stringify(payload).slice(0, 90);
 }
 
@@ -670,6 +679,7 @@ chatForm.addEventListener("submit", async (e) => {
 
   appendChatMessage("user", question);
   chatInput.value = "";
+  const history = chatHistoryFor(state.paper);
   chatInput.disabled = true;
   chatSendBtn.disabled = true;
   const thinkingEl = appendChatMessage("bot", "Bio-Link is thinking…", { thinking: true });
@@ -684,6 +694,7 @@ chatForm.addEventListener("submit", async (e) => {
         entities: state.paper.entities || [],
         relationships: state.paper.relationships || [],
         question,
+        history,
       }),
     });
     thinkingEl.remove();
@@ -694,6 +705,10 @@ chatForm.addEventListener("submit", async (e) => {
     }
     const data = await resp.json();
     appendChatMessage("bot", data.answer, { error: !data.grounded });
+    if (data.grounded) {
+      // remember the exchange so the next question can be a follow-up
+      history.push({ role: "user", content: question }, { role: "assistant", content: data.answer });
+    }
   } catch (err) {
     thinkingEl.remove();
     appendChatMessage("bot", "Couldn't reach the Bio-Link backend. Check that it's running and try again.", { error: true });
@@ -703,6 +718,14 @@ chatForm.addEventListener("submit", async (e) => {
     chatInput.focus();
   }
 });
+
+// Conversation memory for Ask Bio-Link: one history per open paper, reset
+// automatically when a different paper is opened.
+const chatHistories = new WeakMap();
+function chatHistoryFor(paper) {
+  if (!chatHistories.has(paper)) chatHistories.set(paper, []);
+  return chatHistories.get(paper);
+}
 
 function appendChatMessage(role, text, opts = {}) {
   const wrap = document.createElement("div");

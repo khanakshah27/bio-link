@@ -1,0 +1,541 @@
+{
+ "name": "heldout",
+ "description": "16 passages (32 sentences) written AFTER the fixes and not used to design them. Deliberately includes entities outside the lexicons (e.g. STAT3, glioblastoma, Lynch syndrome, autophagy, temozolomide) so recall outside the word lists is measured. Still written and annotated by the authors; it is not a public benchmark.",
+ "guidelines": "Annotation guidelines: entities are named human genes/gene products (HGNC symbols and common aliases), diseases, pathways/biological processes, organisms, drugs/chemicals and rs-numbered SNPs. Lab reagents, reporters, software, statistics terms and gene FAMILY/complex names (AKT, MAPK, PI3K) are NOT entities. Relations are annotated only between annotated entities in the same sentence.",
+ "passages": [
+  {
+   "id": "h01",
+   "text": "MLH1 loss predisposes to Lynch syndrome and colorectal cancer. Metformin inhibits mTOR signalling in mice.",
+   "entities": [
+    [
+     "MLH1",
+     "gene"
+    ],
+    [
+     "colorectal cancer",
+     "disease"
+    ],
+    [
+     "metformin",
+     "chemical"
+    ],
+    [
+     "mice",
+     "organism"
+    ],
+    [
+     "Lynch syndrome",
+     "disease"
+    ],
+    [
+     "mTOR signalling",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "MLH1",
+     "colorectal cancer",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h02",
+   "text": "STAT3 promotes tumour growth in glioblastoma. Temozolomide was given to patients with IDH1 mutations.",
+   "entities": [
+    [
+     "STAT3",
+     "gene"
+    ],
+    [
+     "temozolomide",
+     "chemical"
+    ],
+    [
+     "IDH1",
+     "gene"
+    ],
+    [
+     "glioblastoma",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "STAT3",
+     "glioblastoma",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h03",
+   "text": "p53 activates CDKN1A after DNA damage. MDM2 suppresses p53 in human cells.",
+   "entities": [
+    [
+     "p53",
+     "gene"
+    ],
+    [
+     "CDKN1A",
+     "gene"
+    ],
+    [
+     "MDM2",
+     "gene"
+    ],
+    [
+     "human",
+     "organism"
+    ]
+   ],
+   "relations": [
+    [
+     "p53",
+     "CDKN1A",
+     "activates"
+    ],
+    [
+     "MDM2",
+     "p53",
+     "suppresses"
+    ]
+   ]
+  },
+  {
+   "id": "h04",
+   "text": "LRRK2 and SNCA are linked to Parkinson's disease. Dopamine levels fall in affected neurons.",
+   "entities": [
+    [
+     "LRRK2",
+     "gene"
+    ],
+    [
+     "SNCA",
+     "gene"
+    ],
+    [
+     "Parkinson's disease",
+     "disease"
+    ],
+    [
+     "dopamine",
+     "chemical"
+    ]
+   ],
+   "relations": [
+    [
+     "LRRK2",
+     "Parkinson's disease",
+     "associated_with"
+    ],
+    [
+     "SNCA",
+     "Parkinson's disease",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h05",
+   "text": "Cells were stained with DAPI, imaged with GFP filters, and analysed in SPSS using ANOVA. Lysates were blocked in BSA and run by SDS-PAGE.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "h06",
+   "text": "HER-2 amplification occurs in breast cancer, and trastuzumab binds HER-2. BRCA2 interacts with RAD51.",
+   "entities": [
+    [
+     "HER-2",
+     "gene"
+    ],
+    [
+     "breast cancer",
+     "disease"
+    ],
+    [
+     "trastuzumab",
+     "chemical"
+    ],
+    [
+     "BRCA2",
+     "gene"
+    ],
+    [
+     "RAD51",
+     "gene"
+    ]
+   ],
+   "relations": [
+    [
+     "trastuzumab",
+     "HER-2",
+     "binds"
+    ],
+    [
+     "BRCA2",
+     "RAD51",
+     "interacts_with"
+    ],
+    [
+     "HER-2",
+     "breast cancer",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h07",
+   "text": "IL-6 and TNF-alpha promote inflammation in rheumatoid arthritis. Aspirin reduces TNF-alpha levels.",
+   "entities": [
+    [
+     "IL-6",
+     "gene"
+    ],
+    [
+     "TNF-alpha",
+     "gene"
+    ],
+    [
+     "rheumatoid arthritis",
+     "disease"
+    ],
+    [
+     "aspirin",
+     "chemical"
+    ]
+   ],
+   "relations": [
+    [
+     "IL-6",
+     "rheumatoid arthritis",
+     "associated_with"
+    ],
+    [
+     "TNF-alpha",
+     "rheumatoid arthritis",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h08",
+   "text": "APP and PSEN1 mutations cause early-onset Alzheimer's disease. APOE variant rs429358 raises risk.",
+   "entities": [
+    [
+     "APP",
+     "gene"
+    ],
+    [
+     "PSEN1",
+     "gene"
+    ],
+    [
+     "Alzheimer's disease",
+     "disease"
+    ],
+    [
+     "APOE",
+     "gene"
+    ],
+    [
+     "rs429358",
+     "snp"
+    ]
+   ],
+   "relations": [
+    [
+     "APP",
+     "Alzheimer's disease",
+     "causes"
+    ],
+    [
+     "PSEN1",
+     "Alzheimer's disease",
+     "causes"
+    ],
+    [
+     "rs429358",
+     "APOE",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h09",
+   "text": "FOXP3 regulates regulatory T cell development. CTLA4 inhibits T cell activation in multiple sclerosis.",
+   "entities": [
+    [
+     "FOXP3",
+     "gene"
+    ],
+    [
+     "CTLA4",
+     "gene"
+    ],
+    [
+     "multiple sclerosis",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "CTLA4",
+     "multiple sclerosis",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h10",
+   "text": "KRAS mutations are frequent in pancreatic cancer and lung cancer. Cisplatin was combined with olaparib.",
+   "entities": [
+    [
+     "KRAS",
+     "gene"
+    ],
+    [
+     "pancreatic cancer",
+     "disease"
+    ],
+    [
+     "lung cancer",
+     "disease"
+    ],
+    [
+     "cisplatin",
+     "chemical"
+    ],
+    [
+     "olaparib",
+     "chemical"
+    ]
+   ],
+   "relations": [
+    [
+     "KRAS",
+     "pancreatic cancer",
+     "associated_with"
+    ],
+    [
+     "KRAS",
+     "lung cancer",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h11",
+   "text": "SIRT3 regulates mitochondrial metabolism and autophagy in mice. FGFR1 activates the MAPK pathway.",
+   "entities": [
+    [
+     "SIRT3",
+     "gene"
+    ],
+    [
+     "autophagy",
+     "pathway"
+    ],
+    [
+     "mice",
+     "organism"
+    ],
+    [
+     "FGFR1",
+     "gene"
+    ],
+    [
+     "MAPK pathway",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "SIRT3",
+     "autophagy",
+     "regulates"
+    ],
+    [
+     "FGFR1",
+     "MAPK pathway",
+     "activates"
+    ]
+   ]
+  },
+  {
+   "id": "h12",
+   "text": "TERT promoter mutations were detected in melanoma. PTEN loss promotes tumour growth in prostate cancer.",
+   "entities": [
+    [
+     "TERT",
+     "gene"
+    ],
+    [
+     "melanoma",
+     "disease"
+    ],
+    [
+     "PTEN",
+     "gene"
+    ],
+    [
+     "prostate cancer",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "PTEN",
+     "prostate cancer",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h13",
+   "text": "MSH2 binds to MSH6 during mismatch repair. EGFR interacts with ERBB2 in lung cancer.",
+   "entities": [
+    [
+     "MSH2",
+     "gene"
+    ],
+    [
+     "MSH6",
+     "gene"
+    ],
+    [
+     "EGFR",
+     "gene"
+    ],
+    [
+     "ERBB2",
+     "gene"
+    ],
+    [
+     "lung cancer",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "MSH2",
+     "MSH6",
+     "binds"
+    ],
+    [
+     "EGFR",
+     "ERBB2",
+     "interacts_with"
+    ]
+   ]
+  },
+  {
+   "id": "h14",
+   "text": "The type 2 diabetes risk allele rs7903146 in TCF7L2 was replicated. Insulin secretion is reduced in carriers.",
+   "entities": [
+    [
+     "type 2 diabetes",
+     "disease"
+    ],
+    [
+     "rs7903146",
+     "snp"
+    ],
+    [
+     "TCF7L2",
+     "gene"
+    ],
+    [
+     "insulin",
+     "chemical"
+    ]
+   ],
+   "relations": [
+    [
+     "rs7903146",
+     "type 2 diabetes",
+     "associated_with"
+    ],
+    [
+     "TCF7L2",
+     "type 2 diabetes",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "h15",
+   "text": "BRAF mutations drive melanoma and thyroid cancer. NRAS activates the MAPK pathway.",
+   "entities": [
+    [
+     "BRAF",
+     "gene"
+    ],
+    [
+     "melanoma",
+     "disease"
+    ],
+    [
+     "thyroid cancer",
+     "disease"
+    ],
+    [
+     "NRAS",
+     "gene"
+    ],
+    [
+     "MAPK pathway",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "BRAF",
+     "melanoma",
+     "associated_with"
+    ],
+    [
+     "BRAF",
+     "thyroid cancer",
+     "associated_with"
+    ],
+    [
+     "NRAS",
+     "MAPK pathway",
+     "activates"
+    ]
+   ]
+  },
+  {
+   "id": "h16",
+   "text": "HBB mutations cause sickle cell disease. Hydroxyurea increases fetal haemoglobin in humans.",
+   "entities": [
+    [
+     "HBB",
+     "gene"
+    ],
+    [
+     "hydroxyurea",
+     "chemical"
+    ],
+    [
+     "humans",
+     "organism"
+    ],
+    [
+     "sickle cell disease",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "HBB",
+     "sickle cell disease",
+     "causes"
+    ]
+   ]
+  }
+ ]
+}

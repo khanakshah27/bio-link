@@ -35,15 +35,15 @@ from dataclasses import dataclass
 from . import llm_client
 
 RELATION_PATTERNS = [
-    (r"\binhibits?\b", "inhibits"),
-    (r"\bactivates?\b", "activates"),
-    (r"\bsuppress(?:es)?\b", "suppresses"),
-    (r"\bpromotes?\b", "promotes"),
-    (r"\bregulat(?:es|ed|ion)\b", "regulates"),
+    (r"\binhibits?\b|\binhibited by\b", "inhibits"),
+    (r"\bactivates?\b|\bactivated by\b", "activates"),
+    (r"\bsuppress(?:es)?\b|\breduces?\b|\battenuates?\b|\bdecreases?\b", "suppresses"),
+    (r"\bpromotes?\b|\bdrives?\b|\bincreases?\s+(?:the\s+)?(?:level|expression)", "promotes"),
+    (r"\bregulat(?:es|ed|ion)\b|\bphosphorylat\w*\b|\bdeacetylat\w*\b|\bubiquitinat\w*\b|\bmethylat\w*\b", "regulates"),
     (r"\binteracts? with\b", "interacts_with"),
     (r"\bbinds? to\b|\bbinds?\b", "binds"),
-    (r"\bassociated with\b", "associated_with"),
-    (r"\bcauses?\b|\bincreases?\s+(?:the\s+)?risk\b|\bcontributes? to\b", "associated_with"),
+    (r"\bcauses?\b|\bleads? to\b|\bresults? in\b", "causes"),
+    (r"\bassociated with\b|\blinked to\b|\bcorrelat\w* with\b|\bmutated in\b|\bincreases?\s+(?:the\s+)?(?:\w+\s+){0,2}risk\b|\bcontributes? to\b|\bpredispos\w*\b", "associated_with"),
 ]
 
 # Controlled vocabulary the LLM is asked to classify into. Anything outside
@@ -208,14 +208,20 @@ def _regex_extract_for_sentence(sentence: str, ents: list) -> list[ExtractedRela
     if not pattern_hit:
         return []
 
-    # Naive pairing: connect every distinct entity pair in the sentence
-    # with the detected relation type. Good enough for short sentences
-    # typical of abstracts/result statements.
+    # Pairing: connect every distinct entity pair in the sentence (minus the
+    # organism / disease-disease pairs below) with the detected relation type.
+    # This is still crude: the label is a guess for the sentence, not the pair.
     relations = []
     seen_pairs = set()
     for i, a in enumerate(ents):
         for b in ents[i + 1:]:
             if a.text.upper() == b.text.upper():
+                continue
+            # An organism is context ("in human cells"), not a participant, and
+            # two diseases in one sentence are rarely related by the verb.
+            if "organism" in (a.entity_type, b.entity_type):
+                continue
+            if a.entity_type == b.entity_type == "disease":
                 continue
             pair_key = tuple(sorted([a.text.upper(), b.text.upper()]))
             if pair_key in seen_pairs:

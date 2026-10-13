@@ -200,7 +200,7 @@ keyword-OR search (no LLM) if no `GEMINI_API_KEY` is configured.
 | `GET` | `/api/papers/{id}` | Full paper detail (entities, relationships, summary) |
 | `GET` | `/api/papers/{id}/graph` | Cytoscape.js `{elements: {nodes, edges}}` |
 | `DELETE` | `/api/papers/{id}` | Delete a paper and its data |
-| `POST` | `/api/papers/ask` | Ask Bio-Link: `{filename, summary, entities, relationships, question}` → `{answer, grounded}` |
+| `POST` | `/api/papers/ask` | Ask Bio-Link: `{filename, summary, entities, relationships, question, history?}` → `{answer, grounded}`. `history` is the earlier `{role, content}` turns (last 6 are used) so follow-up questions work |
 | `POST` | `/api/papers/related` | Related papers: `{pubmed_id, entities}` → `{papers, method}` |
 
 ## Notes on external network access
@@ -217,6 +217,31 @@ rest.kegg.jp   www.ebi.ac.uk   string-db.org
 Without that access, BioLink still runs end-to-end using the offline
 fallback described above — useful for demos, but not a substitute for the
 live data in normal use.
+
+## Testing and evaluation
+
+```bash
+cd backend && pip install pytest && python -m pytest tests -q    # offline unit tests (network stubbed)
+python eval/run_eval.py                                         # entity + regex-relation scoring, no network
+python scripts/live_check.py --json live.json                   # LIVE: run on a machine with internet access
+```
+
+* `backend/tests/` stubs every HTTP call, so it checks parsing (GO, ClinVar),
+  normalization, the concurrent-lookup ordering, the NCBI rate limiter and
+  follow-up question handling, not live service behaviour.
+* `eval/` holds three hand-annotated sets (`dataset_dev.json`,
+  `dataset_heldout.json`, `dataset_noise.json`) and the scorer. They were written and
+  annotated by the project authors, who also wrote the word lists: they are
+  diagnostics, **not a public benchmark**, and the rules were tuned after
+  looking at the dev and held-out errors. `dataset_noise.json` is methods/statistics
+  text full of acronyms and was scored once, untuned, to measure false gene guesses.
+* `scripts/live_check.py` is the only thing that measures the real databases
+  (live / cached / unavailable counts, latency per database, sequential vs.
+  concurrent lookup time, and optionally one Gemini relation + Q&A call).
+
+Behaviour notes: gene lookups are restricted to human (taxon 9606), so mouse
+`Trp53` is not distinguished from `TP53`. Gene symbols outside the curated list
+are only guessed in the dictionary-only tier unless `INCLUDE_GUESSED_GENES=true`.
 
 ## Frontend design
 
@@ -267,4 +292,3 @@ back to the relative `/api/papers`.
 - Multi-paper comparison view
 - Confidence-score display in the UI (already tracked in the data model)
 - Exportable PDF report per paper
-- Multi-turn conversation memory for Ask Bio-Link (currently stateless per question)

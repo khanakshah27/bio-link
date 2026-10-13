@@ -1,0 +1,460 @@
+{
+ "name": "dev",
+ "description": "First 12 passages (24 sentences). Written and annotated by the authors BEFORE the limitation fixes; the fixes were designed after looking at this set's errors, so it is a development set, not a fair test of them.",
+ "guidelines": "Annotation guidelines: entities are named human genes/gene products (HGNC symbols and common aliases), diseases, pathways/biological processes, organisms, drugs/chemicals and rs-numbered SNPs. Lab reagents, reporters, software, statistics terms and gene FAMILY/complex names (AKT, MAPK, PI3K) are NOT entities. Relations are annotated only between annotated entities in the same sentence.",
+ "passages": [
+  {
+   "id": "d01",
+   "text": "TP53 inhibits MDM2 in human cells. Mutations in TP53 increase breast cancer risk. BRCA1 interacts with RAD51 during homologous recombination.",
+   "entities": [
+    [
+     "TP53",
+     "gene"
+    ],
+    [
+     "MDM2",
+     "gene"
+    ],
+    [
+     "human",
+     "organism"
+    ],
+    [
+     "breast cancer",
+     "disease"
+    ],
+    [
+     "BRCA1",
+     "gene"
+    ],
+    [
+     "RAD51",
+     "gene"
+    ],
+    [
+     "homologous recombination",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "TP53",
+     "MDM2",
+     "inhibits"
+    ],
+    [
+     "TP53",
+     "breast cancer",
+     "associated_with"
+    ],
+    [
+     "BRCA1",
+     "RAD51",
+     "interacts_with"
+    ]
+   ]
+  },
+  {
+   "id": "d02",
+   "text": "Loss of PTEN function activates the PI3K/AKT pathway in prostate cancer. Metformin suppresses MYC expression in mice.",
+   "entities": [
+    [
+     "PTEN",
+     "gene"
+    ],
+    [
+     "PI3K/AKT pathway",
+     "pathway"
+    ],
+    [
+     "prostate cancer",
+     "disease"
+    ],
+    [
+     "metformin",
+     "chemical"
+    ],
+    [
+     "MYC",
+     "gene"
+    ],
+    [
+     "mice",
+     "organism"
+    ]
+   ],
+   "relations": [
+    [
+     "PTEN",
+     "PI3K/AKT pathway",
+     "activates"
+    ],
+    [
+     "metformin",
+     "MYC",
+     "suppresses"
+    ]
+   ]
+  },
+  {
+   "id": "d03",
+   "text": "EGFR binds to erlotinib in lung cancer cells. KRAS regulates the MAPK pathway.",
+   "entities": [
+    [
+     "EGFR",
+     "gene"
+    ],
+    [
+     "erlotinib",
+     "chemical"
+    ],
+    [
+     "lung cancer",
+     "disease"
+    ],
+    [
+     "KRAS",
+     "gene"
+    ],
+    [
+     "MAPK pathway",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "EGFR",
+     "erlotinib",
+     "binds"
+    ],
+    [
+     "KRAS",
+     "MAPK pathway",
+     "regulates"
+    ]
+   ]
+  },
+  {
+   "id": "d04",
+   "text": "The variant rs1799950 in BRCA1 is associated with ovarian cancer. Olaparib was given to patients with BRCA2 mutations.",
+   "entities": [
+    [
+     "rs1799950",
+     "snp"
+    ],
+    [
+     "BRCA1",
+     "gene"
+    ],
+    [
+     "ovarian cancer",
+     "disease"
+    ],
+    [
+     "olaparib",
+     "chemical"
+    ],
+    [
+     "BRCA2",
+     "gene"
+    ]
+   ],
+   "relations": [
+    [
+     "rs1799950",
+     "ovarian cancer",
+     "associated_with"
+    ],
+    [
+     "BRCA1",
+     "ovarian cancer",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "d05",
+   "text": "p53 protein levels were measured in HER2 positive tumours. Tumor protein p53 promotes apoptosis.",
+   "entities": [
+    [
+     "p53",
+     "gene"
+    ],
+    [
+     "HER2",
+     "gene"
+    ],
+    [
+     "Tumor protein p53",
+     "gene"
+    ],
+    [
+     "apoptosis",
+     "pathway"
+    ]
+   ],
+   "relations": [
+    [
+     "Tumor protein p53",
+     "apoptosis",
+     "promotes"
+    ]
+   ]
+  },
+  {
+   "id": "d06",
+   "text": "SIRT1 deacetylates FOXO3 and regulates cell cycle in zebrafish. CDK4 phosphorylates RB1 in melanoma.",
+   "entities": [
+    [
+     "SIRT1",
+     "gene"
+    ],
+    [
+     "FOXO3",
+     "gene"
+    ],
+    [
+     "cell cycle",
+     "pathway"
+    ],
+    [
+     "zebrafish",
+     "organism"
+    ],
+    [
+     "CDK4",
+     "gene"
+    ],
+    [
+     "RB1",
+     "gene"
+    ],
+    [
+     "melanoma",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "SIRT1",
+     "FOXO3",
+     "regulates"
+    ],
+    [
+     "CDK4",
+     "RB1",
+     "regulates"
+    ]
+   ]
+  },
+  {
+   "id": "d07",
+   "text": "Western blots used GFP and GAPDH as controls; ANOVA and ELISA were run in PBS. Statistical tests used SPSS.",
+   "entities": [],
+   "relations": []
+  },
+  {
+   "id": "d08",
+   "text": "Dopamine and serotonin levels were altered in Parkinson's disease and Alzheimer disease patients.",
+   "entities": [
+    [
+     "dopamine",
+     "chemical"
+    ],
+    [
+     "serotonin",
+     "chemical"
+    ],
+    [
+     "Parkinson's disease",
+     "disease"
+    ],
+    [
+     "Alzheimer disease",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "dopamine",
+     "Parkinson's disease",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "d09",
+   "text": "The APOE gene is linked to Alzheimer's disease, while CFTR mutations cause cystic fibrosis. Insulin signaling is impaired in type 2 diabetes.",
+   "entities": [
+    [
+     "APOE",
+     "gene"
+    ],
+    [
+     "Alzheimer's disease",
+     "disease"
+    ],
+    [
+     "CFTR",
+     "gene"
+    ],
+    [
+     "cystic fibrosis",
+     "disease"
+    ],
+    [
+     "insulin",
+     "chemical"
+    ],
+    [
+     "insulin signaling",
+     "pathway"
+    ],
+    [
+     "type 2 diabetes",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "APOE",
+     "Alzheimer's disease",
+     "associated_with"
+    ],
+    [
+     "CFTR",
+     "cystic fibrosis",
+     "causes"
+    ]
+   ]
+  },
+  {
+   "id": "d10",
+   "text": "IL-6 and TNF-alpha drive inflammation in rheumatoid arthritis. TNF is elevated in obesity and hypertension.",
+   "entities": [
+    [
+     "TNF",
+     "gene"
+    ],
+    [
+     "rheumatoid arthritis",
+     "disease"
+    ],
+    [
+     "obesity",
+     "disease"
+    ],
+    [
+     "hypertension",
+     "disease"
+    ],
+    [
+     "IL-6",
+     "gene"
+    ]
+   ],
+   "relations": [
+    [
+     "TNF",
+     "rheumatoid arthritis",
+     "associated_with"
+    ]
+   ]
+  },
+  {
+   "id": "d11",
+   "text": "ATM activates CHEK2 after DNA damage response signalling, and PALB2 binds BRCA2 to promote DNA repair. JAK2 and FLT3 are mutated in leukemia.",
+   "entities": [
+    [
+     "ATM",
+     "gene"
+    ],
+    [
+     "CHEK2",
+     "gene"
+    ],
+    [
+     "DNA damage response",
+     "pathway"
+    ],
+    [
+     "PALB2",
+     "gene"
+    ],
+    [
+     "BRCA2",
+     "gene"
+    ],
+    [
+     "DNA repair",
+     "pathway"
+    ],
+    [
+     "JAK2",
+     "gene"
+    ],
+    [
+     "FLT3",
+     "gene"
+    ],
+    [
+     "leukemia",
+     "disease"
+    ]
+   ],
+   "relations": [
+    [
+     "ATM",
+     "CHEK2",
+     "activates"
+    ],
+    [
+     "PALB2",
+     "BRCA2",
+     "binds"
+    ]
+   ]
+  },
+  {
+   "id": "d12",
+   "text": "HTT is mutated in Huntington's disease. NOTCH1 and SMAD4 act in Wnt signaling in colorectal cancer and E. coli models.",
+   "entities": [
+    [
+     "HTT",
+     "gene"
+    ],
+    [
+     "Huntington's disease",
+     "disease"
+    ],
+    [
+     "NOTCH1",
+     "gene"
+    ],
+    [
+     "SMAD4",
+     "gene"
+    ],
+    [
+     "Wnt signaling",
+     "pathway"
+    ],
+    [
+     "colorectal cancer",
+     "disease"
+    ],
+    [
+     "E. coli",
+     "organism"
+    ]
+   ],
+   "relations": [
+    [
+     "HTT",
+     "Huntington's disease",
+     "associated_with"
+    ]
+   ]
+  }
+ ]
+}

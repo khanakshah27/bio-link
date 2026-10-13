@@ -18,6 +18,10 @@ from . import llm_client
 # an unusually large number of extracted entities/relationships.
 MAX_ENTITIES_IN_CONTEXT = 200
 MAX_RELATIONSHIPS_IN_CONTEXT = 150
+# Follow-up questions: only the most recent turns are replayed, each clipped,
+# so the prompt stays bounded however long the conversation gets.
+MAX_HISTORY_TURNS = 6
+MAX_HISTORY_CHARS = 600
 
 
 def _build_context(paper) -> str:
@@ -57,6 +61,19 @@ def _build_context(paper) -> str:
     return "\n".join(lines)
 
 
+def _format_history(history) -> str:
+    turns = [t for t in (history or []) if getattr(t, "content", "").strip()][-MAX_HISTORY_TURNS:]
+    if not turns:
+        return ""
+    lines = ["=== Conversation so far (for resolving follow-up questions only; "
+             "facts must still come from the extracted knowledge above) ==="]
+    for t in turns:
+        who = "User" if t.role == "user" else "Assistant"
+        lines.append(f"{who}: {t.content.strip()[:MAX_HISTORY_CHARS]}")
+    lines.append("=== End of conversation ===\n")
+    return "\n".join(lines) + "\n"
+
+
 def answer_question(paper, question: str) -> dict:
     if not llm_client.is_available():
         return {
@@ -81,6 +98,7 @@ def answer_question(paper, question: str) -> dict:
         "list if the question asks for multiple items).\n\n"
         f'=== Extracted knowledge for "{paper.filename}" ===\n{context}\n'
         "=== End of extracted knowledge ===\n\n"
+        f"{_format_history(getattr(paper, 'history', None))}"
         f"Question: {question}"
     )
     answer, error = llm_client.call_gemini_verbose(prompt, max_output_tokens=500, temperature=0.1)

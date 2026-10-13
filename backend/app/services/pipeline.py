@@ -44,8 +44,12 @@ def run_pipeline(db: Session, paper: models.Paper) -> models.Paper:
             entity_rows[key] = row
 
         # --- Query external databases once per entity -----------------------
-        for row in entity_rows.values():
-            for rec in dbint.query_all_for_entity(row.text, row.entity_type):
+        # Lookups run concurrently (network-bound, no DB session involved);
+        # rows are written back here, on the request's own session.
+        rows = list(entity_rows.values())
+        lookups = dbint.query_all_for_entities([(r.text, r.entity_type) for r in rows])
+        for row, records in zip(rows, lookups):
+            for rec in records:
                 db.add(models.DatabaseRecord(
                     entity_id=row.id,
                     source=rec["source"],
